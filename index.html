@@ -2,300 +2,1521 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<title>ANACIM SIM - PC + ANDROID READY</title>
-
-<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
-<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=5">
+<title>SEN Météo — ANACIM Dashboard Live</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<!-- Leaflet CSS -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<!-- Leaflet JS -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f0f4f8;--bg2:#e8eef5;--bg3:#dde5ee;--card:#ffffff;--card2:#f7f9fc;
+  --border:rgba(0,0,0,0.09);--bord2:rgba(14,165,233,0.25);
+  --accent:#0ea5e9;--a2:#0284c7;--a3:#38bdf8;
+  --text:#0f172a;--text2:#475569;--text3:#94a3b8;
+  --orange:#ea580c;--yellow:#d97706;--green:#16a34a;--red:#dc2626;--purple:#7c3aed;
+  --fh:'Space Grotesk',sans-serif;--fb:'DM Sans',sans-serif;--fm:'JetBrains Mono',monospace;
+  --r:14px;--rs:10px;--nav:54px;
+}
+html{scroll-behavior:smooth}
+body{font-family:var(--fb);background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;font-size:13px;-webkit-font-smoothing:antialiased}
+::-webkit-scrollbar{width:4px;height:4px}::-webkit-scrollbar-track{background:var(--bg2)}::-webkit-scrollbar-thumb{background:var(--bg3);border-radius:4px}
 
-body{
-margin:0;
-font-family:Arial;
-background:#06111f;
-color:white;
-overflow:hidden;
+/* NAV — blanc */
+nav{position:sticky;top:0;z-index:400;height:var(--nav);display:flex;align-items:center;gap:10px;padding:0 16px;background:rgba(255,255,255,.97);backdrop-filter:blur(20px);border-bottom:1px solid var(--border);box-shadow:0 1px 8px rgba(0,0,0,.06)}
+.logo{display:flex;align-items:center;gap:8px;cursor:pointer;flex-shrink:0;text-decoration:none;color:var(--text)}
+.logo-badge{width:30px;height:30px;background:linear-gradient(135deg,#0ea5e9,#6366f1);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
+.logo-name{font-family:var(--fh);font-size:14px;font-weight:700;line-height:1;color:var(--text)}
+.logo-name small{display:block;font-size:8.5px;font-weight:500;color:var(--accent);letter-spacing:.3px}
+.nav-tabs{display:flex;gap:1px;overflow-x:auto;flex:1;scrollbar-width:none}
+.nav-tabs::-webkit-scrollbar{display:none}
+.nav-tab{background:none;border:none;color:var(--text3);font-family:var(--fb);font-size:11px;font-weight:500;padding:5px 11px;border-radius:7px;cursor:pointer;transition:all .15s;white-space:nowrap;flex-shrink:0}
+.nav-tab:hover{color:var(--text2);background:var(--bg2)}
+.nav-tab.active{background:rgba(14,165,233,.1);color:var(--accent);border:.5px solid rgba(14,165,233,.25)}
+.live-pill{display:flex;align-items:center;gap:4px;background:rgba(22,163,74,.08);border:.5px solid rgba(22,163,74,.25);border-radius:20px;padding:3px 8px;font-size:9.5px;color:var(--green);font-family:var(--fm);flex-shrink:0}
+.live-dot{width:5px;height:5px;border-radius:50%;background:var(--green);animation:lp 2s infinite}
+@keyframes lp{0%,100%{opacity:1}50%{opacity:.4}}
+.tab-pane{display:none}.tab-pane.active{display:block}
+
+/* LOADING */
+#loadingOverlay{position:fixed;inset:0;background:rgba(240,244,248,.97);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px}
+.ls{width:42px;height:42px;border:2.5px solid var(--bg3);border-top-color:var(--accent);border-radius:50%;animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.lt{font-family:var(--fh);font-size:14px;color:var(--text2)}
+.ls2{font-size:11px;color:var(--text3);font-family:var(--fm)}
+
+/* ALERTS */
+#alertsContainer .alert-strip{display:flex;align-items:flex-start;gap:10px;padding:9px 18px;font-size:12px;border-left:3px solid var(--orange);background:rgba(234,88,12,.06)}
+#alertsContainer .alert-strip.danger{border-color:var(--red);background:rgba(220,38,38,.06)}
+#alertsContainer .alert-strip.info{border-color:var(--accent);background:rgba(14,165,233,.06)}
+#alertsContainer .alert-strip strong{color:var(--orange)}
+#alertsContainer .alert-strip.danger strong{color:var(--red)}
+#alertsContainer .alert-strip.info strong{color:var(--accent)}
+
+/* SEARCH */
+.search-wrap{position:relative;z-index:10;padding:10px 16px 0}
+.search-box{display:flex;align-items:center;gap:8px;background:#fff;border:1.5px solid var(--bord2);border-radius:12px;padding:8px 14px;box-shadow:0 2px 8px rgba(14,165,233,.08)}
+.search-box input{background:none;border:none;color:var(--text);font-family:var(--fb);font-size:13px;flex:1;outline:none;min-width:0}
+.search-box input::placeholder{color:var(--text3)}
+.search-icon{font-size:15px;color:var(--text3);flex-shrink:0}
+.search-results{position:absolute;top:100%;left:0;right:0;background:#fff;border:1.5px solid var(--bord2);border-radius:10px;margin-top:4px;z-index:50;max-height:280px;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.12)}
+.search-result-item{display:flex;align-items:center;gap:10px;padding:9px 14px;cursor:pointer;border-bottom:1px solid var(--border);transition:background .1s}
+.search-result-item:hover{background:var(--bg2)}
+.search-result-item:last-child{border-bottom:none}
+.sri-icon{font-size:16px;flex-shrink:0}
+.sri-info{flex:1}
+.sri-name{font-size:13px;font-weight:600;color:var(--text)}
+.sri-reg{font-size:10px;color:var(--text3)}
+.sri-temp{font-family:var(--fh);font-size:15px;font-weight:700;color:var(--accent)}
+
+/* HERO — garde le fond animé sombre pour le contraste visuel */
+.hero{position:relative;overflow:hidden;min-height:400px}
+#weatherMapCanvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+.hero-ov{position:absolute;inset:0;background:linear-gradient(130deg,rgba(7,12,24,.88) 0%,rgba(10,20,50,.70) 55%,rgba(7,12,24,.85) 100%);z-index:1}
+.hero-body{position:relative;z-index:2;padding:14px 16px 18px;display:grid;grid-template-columns:1fr 300px;gap:14px;align-items:start}
+
+/* Carte météo (reste sombre pour lisibilité sur fond animé) */
+.wx-card{background:linear-gradient(145deg,rgba(14,38,82,.92),rgba(10,24,56,.88));border:.5px solid rgba(56,189,248,.28);border-radius:var(--r);padding:18px;backdrop-filter:blur(12px)}
+.city-hdr{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px}
+.cname{font-family:var(--fh);font-size:22px;font-weight:700;letter-spacing:-.5px;color:#eef5ff}
+.csub{font-size:10px;color:#7fa8cc;margin-top:2px}
+.unit-tgl{display:flex;gap:2px;background:rgba(0,0,0,.4);border-radius:7px;padding:2px}
+.ubt{background:none;border:none;color:rgba(255,255,255,.5);font-family:var(--fh);font-size:11px;padding:3px 9px;border-radius:5px;cursor:pointer;transition:all .15s}
+.ubt.active{background:var(--a2);color:#fff}
+.temp-row{display:flex;align-items:flex-start;gap:12px;margin:6px 0 12px}
+.tbig{font-family:var(--fh);font-size:70px;font-weight:300;line-height:1;letter-spacing:-4px;color:#eef5ff}
+.tbig sup{font-size:20px;letter-spacing:0;vertical-align:super;color:#7dd3fc}
+.tside{padding-top:4px}
+.wxi{font-size:36px;margin-bottom:4px;line-height:1}
+.wxd{font-size:13px;font-weight:500;color:#eef5ff}
+.wxr{font-size:11px;color:#7fa8cc;margin-top:3px}
+.wxr em{color:#fb923c;font-style:normal}
+.wxf{font-size:10.5px;color:#3d5a78;margin-top:2px}
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;padding-top:12px;border-top:.5px solid rgba(255,255,255,.1)}
+.stat{text-align:center;padding:4px 2px}
+.si{font-size:13px;margin-bottom:2px}
+.sv{font-size:13px;font-weight:700;font-family:var(--fh);color:#eef5ff}
+.su{font-size:9px;color:#3d5a78}
+.sl{font-size:9px;color:#3d5a78;text-transform:uppercase;letter-spacing:.4px;margin-top:1px}
+
+/* Hourly */
+.hourly-card{background:rgba(10,18,40,.88);border:.5px solid rgba(56,189,248,.15);border-radius:var(--r);padding:11px;backdrop-filter:blur(8px);margin-top:10px}
+.sec-title{font-size:9.5px;font-weight:600;text-transform:uppercase;letter-spacing:.9px;color:var(--text3);display:flex;align-items:center;gap:6px;margin-bottom:9px}
+.sec-title::after{content:'';flex:1;height:.5px;background:var(--border)}
+.hscroll{display:flex;gap:5px;overflow-x:auto;padding-bottom:3px;scrollbar-width:thin}
+.hi{min-width:52px;text-align:center;background:rgba(255,255,255,.06);border:.5px solid rgba(255,255,255,.1);border-radius:9px;padding:7px 3px;flex-shrink:0;cursor:pointer;transition:all .15s}
+.hi.now,.hi:hover{background:rgba(56,189,248,.15);border-color:rgba(56,189,248,.35)}
+.ht{font-size:9.5px;color:#7fa8cc;margin-bottom:2px;font-family:var(--fm)}
+.hic{font-size:16px;margin-bottom:2px}
+.htp{font-size:12px;font-weight:600;font-family:var(--fh);color:#eef5ff}
+.hr{font-size:9px;color:#7dd3fc;margin-top:2px}
+.hw{font-size:8.5px;color:#3d5a78;margin-top:1px}
+
+/* Side cities */
+.side-col{display:flex;flex-direction:column;gap:10px;padding-bottom:14px}
+.city-list-card{background:rgba(10,18,40,.88);border:.5px solid rgba(56,189,248,.15);border-radius:var(--r);padding:10px;backdrop-filter:blur(8px)}
+.city-item{display:flex;align-items:center;justify-content:space-between;padding:6px 7px;border-radius:7px;cursor:pointer;transition:all .15s;border:.5px solid transparent}
+.city-item:hover{background:rgba(255,255,255,.07);border-color:rgba(255,255,255,.1)}
+.city-item.sel{background:rgba(56,189,248,.1);border-color:rgba(56,189,248,.25)}
+.ci-l{display:flex;align-items:center;gap:6px}
+.cdot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.cdot.hot{background:#f87171}.cdot.warm{background:#fb923c}.cdot.med{background:#fbbf24}.cdot.cool{background:#34d399}
+.cin{font-size:12px;font-weight:500;color:#eef5ff}
+.cireg{font-size:9px;color:#3d5a78}
+.ci-r{display:flex;align-items:center;gap:4px}
+.citemp{font-family:var(--fh);font-size:15px;font-weight:700;color:#eef5ff}
+
+/* ══ LEAFLET THERMAL MAP ══ */
+.thermo-section{padding:0 16px 14px}
+.thermo-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.06)}
+.thermo-header{display:flex;align-items:center;justify-content:space-between;padding:11px 14px;background:linear-gradient(90deg,rgba(14,165,233,.06),transparent);border-bottom:1px solid var(--border);flex-wrap:wrap;gap:8px}
+.thermo-title{display:flex;align-items:center;gap:8px}
+.thermo-legend{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.leg-item{display:flex;align-items:center;gap:4px;font-size:9px;color:var(--text3)}
+.leg-dot{width:8px;height:8px;border-radius:50%}
+#leafletMap{width:100%;height:520px;z-index:1;background:#e8eef5}
+.leaflet-container{background:#e8eef5;font-family:var(--fb)}
+.leaflet-tile-pane{filter:saturate(0.75) brightness(0.92) contrast(1.05)}
+/* Markers */
+.wx-marker{display:flex;flex-direction:column;align-items:center;cursor:pointer;transition:transform .15s;white-space:nowrap}
+.wx-marker:hover{transform:scale(1.12)}
+.wx-marker-icon{font-size:18px;line-height:1;filter:drop-shadow(0 2px 4px rgba(0,0,0,.4))}
+.wx-marker-temp{font-family:var(--fh);font-size:10px;font-weight:700;padding:2px 7px;border-radius:6px;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.2);margin-top:2px;border:1px solid rgba(255,255,255,.5)}
+.wx-marker-name{font-family:var(--fb);font-size:8px;color:#1e3a5f;margin-top:1px;text-shadow:0 1px 2px rgba(255,255,255,.8);white-space:nowrap;font-weight:700}
+/* Popups */
+.leaflet-popup-content-wrapper{background:#fff!important;border:1.5px solid var(--bord2)!important;border-radius:12px!important;color:var(--text)!important;box-shadow:0 8px 32px rgba(0,0,0,.15)!important}
+.leaflet-popup-tip{background:#fff!important}
+.leaflet-popup-content{margin:10px 14px!important;font-family:var(--fb)!important}
+.pop-city{font-family:var(--fh);font-size:14px;font-weight:700;margin-bottom:4px;color:var(--text)}
+.pop-temp{font-size:22px;font-weight:700;font-family:var(--fh);margin-bottom:4px}
+.pop-desc{font-size:11px;color:var(--text2);margin-bottom:6px}
+.pop-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:10.5px;color:var(--text3)}
+.pop-grid span{color:var(--text2);font-weight:600}
+.pop-btn{display:block;width:100%;margin-top:8px;background:rgba(14,165,233,.1);border:1px solid rgba(14,165,233,.3);color:var(--accent);font-family:var(--fh);font-size:10.5px;font-weight:600;padding:5px 0;border-radius:6px;cursor:pointer;text-align:center;transition:background .15s}
+.pop-btn:hover{background:rgba(14,165,233,.2)}
+.thermo-foot{padding:8px 14px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px}
+.leg-bar-wrap{display:flex;flex-direction:column;gap:2px}
+.leg-bar{width:140px;height:6px;border-radius:3px;background:linear-gradient(90deg,#34d399,#38bdf8,#fbbf24,#fb923c,#f87171)}
+.leg-lbs{display:flex;justify-content:space-between;width:140px;font-size:8px;color:var(--text3);font-family:var(--fm)}
+
+/* ══ VIDEO SECTION ══ */
+.video-section{padding:0 16px 14px}
+.video-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:0 2px 12px rgba(0,0,0,.06)}
+.video-hdr{display:flex;align-items:center;gap:10px;padding:12px 14px;background:linear-gradient(90deg,rgba(14,165,233,.06),transparent);border-bottom:1px solid var(--border)}
+.anacim-pill{background:linear-gradient(135deg,#1a6ea8,#0d4d7a);border-radius:7px;padding:5px 10px;font-family:var(--fh);font-size:11.5px;font-weight:700;color:#fff;letter-spacing:.4px;flex-shrink:0}
+.vtitle{font-family:var(--fh);font-size:13px;font-weight:700;color:var(--text)}
+.vsub{font-size:9.5px;color:var(--text3);margin-top:2px;display:flex;align-items:center;gap:5px}
+.badge-soir{background:linear-gradient(135deg,#be123c,#9f1239);color:#fff;font-size:8.5px;font-weight:700;padding:1px 6px;border-radius:3px}
+.video-body{padding:12px 14px}
+.video-outer{position:relative;background:#000;border-radius:10px;overflow:hidden}
+.video-ratio{position:relative;width:100%;padding-bottom:56.25%}
+.video-ratio iframe{position:absolute;inset:0;width:100%;height:100%;border:none}
+.vid-placeholder{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;background:linear-gradient(135deg,#e8eef5,#f0f4f8)}
+.vid-ph-icon{width:64px;height:64px;background:rgba(14,165,233,.1);border:1px solid rgba(14,165,233,.2);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:26px}
+.vid-ph-text{font-size:11.5px;color:var(--text2);text-align:center;line-height:1.6;max-width:240px}
+.video-info-bar{padding:8px 14px;background:var(--bg2);display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.vid-title-el{font-size:11px;color:var(--text2);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.vid-fs-btn{background:rgba(14,165,233,.08);border:1px solid rgba(14,165,233,.2);color:var(--accent);font-size:10px;padding:4px 10px;border-radius:6px;cursor:pointer;font-family:var(--fm);transition:all .15s;display:flex;align-items:center;gap:4px;flex-shrink:0}
+.vid-fs-btn:hover{background:rgba(14,165,233,.15)}
+.video-nav{padding:8px 14px 12px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+.vday-btns{display:flex;gap:5px;flex-wrap:wrap}
+.vday-btn{background:var(--bg2);border:1px solid var(--border);color:var(--text2);font-size:10px;padding:4px 10px;border-radius:6px;cursor:pointer;transition:all .15s;font-family:var(--fb)}
+.vday-btn.active{background:rgba(14,165,233,.1);border-color:rgba(14,165,233,.3);color:var(--accent)}
+.anacim-link{font-size:10px;color:var(--accent);text-decoration:none;display:flex;align-items:center;gap:4px;font-family:var(--fm);font-weight:600}
+.anacim-link:hover{color:var(--a2)}
+.vid-status-bar{padding:4px 14px 8px;font-size:9.5px;color:var(--text3);font-family:var(--fm);display:flex;align-items:center;gap:6px}
+.vid-status-dot{width:5px;height:5px;border-radius:50%;background:var(--green)}
+
+/* MAIN CONTENT */
+.main-content{padding:0 16px 14px}
+.src-badge{display:inline-flex;align-items:center;gap:5px;background:rgba(14,165,233,.06);border:1px solid rgba(14,165,233,.15);border-radius:20px;padding:3px 9px;font-size:9px;color:var(--text3);margin-bottom:12px;font-family:var(--fm)}
+
+/* Forecast */
+.forecast-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:16px}
+.f-day{background:var(--card);border:1px solid var(--border);border-radius:var(--rs);padding:9px 4px;text-align:center;cursor:pointer;transition:all .2s;box-shadow:0 1px 4px rgba(0,0,0,.05)}
+.f-day:hover,.f-day.today{background:rgba(14,165,233,.07);border-color:rgba(14,165,233,.3);transform:translateY(-2px);box-shadow:0 4px 12px rgba(14,165,233,.12)}
+.f-name{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;color:var(--text3);margin-bottom:3px}
+.f-day.today .f-name{color:var(--accent)}
+.f-icon{font-size:20px;margin:2px 0}
+.f-max{font-size:13px;font-weight:700;font-family:var(--fh);color:var(--orange)}
+.f-min{font-size:9.5px;color:var(--text3);margin-top:1px}
+.f-rain{font-size:9px;color:var(--accent);margin-top:2px}
+.rain-bar{height:3px;background:var(--bg3);border-radius:2px;margin-top:3px;overflow:hidden}
+.rain-fill{height:100%;background:linear-gradient(90deg,var(--a2),var(--a3));border-radius:2px}
+
+/* Details */
+.details-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px}
+.detail-card{background:var(--card);border:1px solid var(--border);border-radius:var(--rs);padding:12px;box-shadow:0 1px 4px rgba(0,0,0,.05)}
+.dh{display:flex;align-items:center;gap:5px;margin-bottom:8px}
+.dhi{font-size:12px}.dht{font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;font-weight:600}
+.dv{font-family:var(--fh);font-size:20px;font-weight:700;line-height:1;color:var(--text)}
+.du{font-size:10px;color:var(--text2);font-weight:400;margin-left:2px}
+.ds{font-size:10px;color:var(--text2);margin-top:4px}
+.db{height:3px;background:var(--bg3);border-radius:2px;margin-top:7px;overflow:hidden}
+.df{height:100%;border-radius:2px}
+
+/* Regions */
+.regions-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-bottom:14px}
+.region-card{background:var(--card);border:1px solid var(--border);border-radius:var(--rs);padding:10px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;transition:all .15s;box-shadow:0 1px 4px rgba(0,0,0,.05)}
+.region-card:hover{background:var(--bg2);border-color:rgba(14,165,233,.25);box-shadow:0 4px 12px rgba(14,165,233,.1)}
+.rn{font-size:12.5px;font-weight:600;color:var(--text)}.rsub{font-size:9px;color:var(--text3);margin-top:2px}
+.rp{font-size:9px;color:var(--accent);margin-top:1px}.rr{display:flex;align-items:center;gap:5px}
+.ricon{font-size:18px}.rtemp{font-family:var(--fh);font-size:17px;font-weight:700;color:var(--text)}
+
+/* Tabs buttons */
+.histo-btn{background:var(--card);border:1px solid var(--border);color:var(--text2);font-family:var(--fb);font-size:10.5px;padding:4px 10px;border-radius:6px;cursor:pointer;transition:all .15s;box-shadow:0 1px 3px rgba(0,0,0,.05)}
+.histo-btn.active{background:rgba(14,165,233,.1);border-color:rgba(14,165,233,.3);color:var(--accent)}
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:13px;margin-bottom:12px;box-shadow:0 1px 4px rgba(0,0,0,.05)}
+
+/* Bulletins */
+.bulletin-list{display:flex;flex-direction:column;gap:10px;margin-bottom:16px}
+.bulletin-item{background:var(--card);border:1px solid var(--border);border-radius:var(--rs);transition:all .15s;box-shadow:0 1px 4px rgba(0,0,0,.05)}
+.bulletin-item:hover{border-color:rgba(14,165,233,.3);box-shadow:0 4px 12px rgba(14,165,233,.1)}
+.b-main{padding:13px;cursor:pointer}
+.b-hdr{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+.b-title{font-size:12.5px;font-weight:600;color:var(--text)}
+.b-badge{font-size:9px;padding:2px 8px;border-radius:20px;font-weight:600;white-space:nowrap;flex-shrink:0}
+.b-badge.alerte{background:rgba(220,38,38,.1);color:var(--red);border:1px solid rgba(220,38,38,.2)}
+.b-badge.vigilance{background:rgba(234,88,12,.1);color:var(--orange);border:1px solid rgba(234,88,12,.2)}
+.b-badge.normal{background:rgba(22,163,74,.08);color:var(--green);border:1px solid rgba(22,163,74,.2)}
+.b-badge.marine{background:rgba(14,165,233,.08);color:var(--accent);border:1px solid rgba(14,165,233,.2)}
+.b-date{font-size:9.5px;color:var(--text3);margin-top:3px}
+.b-body{font-size:11.5px;color:var(--text2);line-height:1.6;margin-top:5px}
+.b-actions{display:flex;align-items:center;gap:6px;padding:0 13px 11px;flex-wrap:wrap}
+.b-expand-btn{background:none;border:1px solid var(--border);color:var(--text3);font-size:10px;padding:3px 9px;border-radius:5px;cursor:pointer;font-family:var(--fb);transition:all .15s}
+.b-expand-btn:hover{border-color:var(--accent);color:var(--accent)}
+.b-dl-btn{display:flex;align-items:center;gap:4px;background:rgba(14,165,233,.08);border:1px solid rgba(14,165,233,.2);color:var(--accent);font-size:10px;padding:3px 10px;border-radius:5px;cursor:pointer;font-family:var(--fb);transition:all .15s}
+.b-dl-btn:hover{background:rgba(14,165,233,.15)}
+.b-expand{display:none;padding:10px 13px 13px;border-top:1px solid var(--border);background:var(--bg2)}
+.bulletin-item.open .b-expand{display:block}
+
+/* Houle */
+.houle-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px}
+.houle-card{background:var(--card);border:1px solid rgba(14,165,233,.15);border-radius:var(--rs);padding:12px;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.05)}
+.hcity{font-size:9.5px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:7px}
+.hwave{font-size:26px;margin-bottom:4px}
+.hht{font-family:var(--fh);font-size:20px;font-weight:700}
+.hhtunit{font-size:10px;color:var(--text2)}
+.hperiod{font-size:10px;color:var(--text2);margin-top:2px}
+.hdir{font-size:9.5px;color:var(--text3);margin-top:2px}
+.halert{font-size:9.5px;color:var(--red);font-weight:600;margin-top:3px}
+.alert-strip{display:flex;align-items:flex-start;gap:8px;padding:9px 12px;font-size:11.5px;border-left:2px solid var(--orange);background:rgba(234,88,12,.06);border-radius:var(--rs);margin-bottom:7px}
+.alert-strip.danger{border-color:var(--red);background:rgba(220,38,38,.06)}
+.alert-strip.info{border-color:var(--accent);background:rgba(14,165,233,.06)}
+
+/* Voice */
+.voice-bar{display:flex;align-items:center;gap:7px;flex-wrap:wrap;background:rgba(14,165,233,.05);border:1px solid rgba(14,165,233,.15);border-radius:10px;padding:9px 12px;margin:0 0 12px}
+.voice-btn{display:flex;align-items:center;gap:5px;background:linear-gradient(135deg,var(--a2),#6366f1);border:none;color:#fff;font-family:var(--fb);font-size:11px;font-weight:600;padding:6px 13px;border-radius:7px;cursor:pointer;transition:all .2s;flex-shrink:0}
+.voice-btn.playing{background:linear-gradient(135deg,var(--red),#b91c1c);animation:vp 1.5s ease-in-out infinite}
+@keyframes vp{0%,100%{box-shadow:0 0 0 0 rgba(220,38,38,.3)}50%{box-shadow:0 0 0 7px rgba(220,38,38,0)}}
+.vlang-btn{background:var(--card);border:1px solid var(--border);color:var(--text2);font-size:9.5px;font-weight:600;padding:3px 8px;border-radius:5px;cursor:pointer;transition:all .15s;font-family:var(--fb)}
+.vlang-btn.active{background:rgba(14,165,233,.1);border-color:rgba(14,165,233,.35);color:var(--accent)}
+.voice-waves{display:flex;align-items:center;gap:2px}
+.vw{width:3px;border-radius:2px;background:var(--accent);animation:wa .8s ease-in-out infinite}
+.vw:nth-child(1){height:7px}.vw:nth-child(2){height:13px;animation-delay:.1s}
+.vw:nth-child(3){height:9px;animation-delay:.2s}.vw:nth-child(4){height:15px;animation-delay:.3s}
+.vw:nth-child(5){height:7px;animation-delay:.4s}
+@keyframes wa{0%,100%{transform:scaleY(.4)}50%{transform:scaleY(1)}}
+.voice-waves.hidden{display:none}
+.vstatus{font-size:10px;color:var(--text3)}
+
+/* Historique */
+.histo-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-bottom:10px}
+.hs-card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:9px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.05)}
+.hsl{font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px}
+.hsv{font-size:15px;font-weight:700;font-family:var(--fh);color:var(--text)}
+.chart-wrap{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:13px;margin-bottom:10px;box-shadow:0 1px 4px rgba(0,0,0,.05)}
+.update-bar{display:flex;justify-content:space-between;align-items:center;font-size:9.5px;color:var(--text3);padding:7px 0 0;border-top:1px solid var(--border)}
+.refresh-btn{background:none;border:1px solid var(--border);color:var(--text2);font-family:var(--fb);font-size:10px;padding:3px 9px;border-radius:5px;cursor:pointer;transition:all .15s}
+.refresh-btn:hover{border-color:var(--accent);color:var(--accent)}
+
+/* ══ RESPONSIVE — PC (>1200px), Tablette (768-1199px), Mobile (<768px) ══ */
+
+/* Grand écran — sidebar élargie */
+@media(min-width:1200px){
+  .hero-body{grid-template-columns:1fr 320px;padding:18px 24px 22px;gap:18px}
+  .forecast-grid{grid-template-columns:repeat(7,1fr);gap:8px}
+  .details-grid{grid-template-columns:repeat(4,1fr);gap:10px}
+  .regions-grid{grid-template-columns:repeat(4,1fr)}
+  .main-content,.thermo-section,.video-section,.search-wrap{padding-left:24px;padding-right:24px}
+  #leafletMap{height:580px}
+  .tbig{font-size:76px}
 }
 
-/* HEADER */
-header{
-position:fixed;
-top:0;left:0;right:0;
-height:50px;
-background:#081c33;
-display:flex;
-align-items:center;
-justify-content:center;
-font-weight:bold;
-z-index:1000;
+/* Tablette (768–1199px) */
+@media(max-width:1199px) and (min-width:768px){
+  .hero-body{grid-template-columns:1fr 260px;gap:12px}
+  .forecast-grid{grid-template-columns:repeat(7,1fr)}
+  .details-grid{grid-template-columns:repeat(4,1fr)}
+  .regions-grid{grid-template-columns:repeat(3,1fr)}
+  #leafletMap{height:460px}
 }
 
-/* MAP */
-#map{
-height:100vh;
-padding-top:50px;
+/* Tablette portrait / grand mobile (600–899px) */
+@media(max-width:899px){
+  .hero-body{grid-template-columns:1fr}
+  .side-col{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  #leafletMap{height:420px}
 }
 
-/* PANEL */
-.panel{
-position:absolute;
-top:65px;
-left:10px;
-background:#0b2239;
-padding:12px;
-border-radius:10px;
-width:360px;
-max-height:75vh;
-overflow-y:auto;
-z-index:999;
-font-size:13px;
+/* Mobile paysage / petite tablette (480–699px) */
+@media(max-width:699px){
+  .hero-body{padding:10px 12px 14px}
+  .side-col{grid-template-columns:1fr}
+  .forecast-grid{grid-template-columns:repeat(4,1fr);gap:4px}
+  .details-grid{grid-template-columns:repeat(2,1fr)}
+  .regions-grid{grid-template-columns:repeat(2,1fr)}
+  .houle-grid{grid-template-columns:repeat(2,1fr)}
+  .histo-stats{grid-template-columns:repeat(2,1fr)}
+  .tbig{font-size:54px}
+  .thermo-section,.video-section,.main-content{padding-left:12px;padding-right:12px}
+  .search-wrap{padding:8px 12px 0}
+  #leafletMap{height:360px}
+  .thermo-header{flex-direction:column;align-items:flex-start}
 }
 
-/* CHART */
-canvas{
-background:white;
-border-radius:8px;
-margin-top:10px;
-padding:5px;
-width:100% !important;
-height:220px !important;
+/* Mobile portrait (<480px) */
+@media(max-width:479px){
+  .logo-name small{display:none}
+  .nav-tab{font-size:10px;padding:4px 7px}
+  .forecast-grid{grid-template-columns:repeat(3,1fr);gap:4px}
+  .details-grid{grid-template-columns:1fr 1fr}
+  .regions-grid{grid-template-columns:1fr}
+  .houle-grid{grid-template-columns:1fr 1fr}
+  .histo-stats{grid-template-columns:1fr 1fr}
+  #leafletMap{height:300px}
+  .tbig{font-size:48px;letter-spacing:-2px}
+  .stats-row{grid-template-columns:repeat(4,1fr)}
+  .thermo-legend{display:none}
+  .voice-bar{gap:5px}
 }
-
-/* BASEMAP BUTTON */
-.map-switch{
-position:absolute;
-top:70px;
-right:10px;
-z-index:1000;
-background:#0b2239;
-padding:10px;
-border-radius:8px;
-font-size:12px;
-}
-
-.map-switch button{
-background:#00e5ff;
-border:none;
-padding:6px 10px;
-margin:2px;
-border-radius:5px;
-cursor:pointer;
-font-weight:bold;
-}
-
-/* MOBILE */
-@media (max-width:768px){
-.panel{width:92%;left:4%;}
-canvas{height:180px !important;}
-}
-
 </style>
 </head>
-
 <body>
 
-<header>🛰️ ANACIM SIM - BASEMAP SWITCH + Prévision du jour et 72H</header>
-
-<!-- 🔘 SWITCH MAP -->
-<div class="map-switch">
-<button onclick="setSatellite()">🛰️ Satellite</button>
-<button onclick="setStreet()">🗺️ Plan</button>
+<div id="loadingOverlay">
+  <div class="ls"></div>
+  <div class="lt">Chargement des données ANACIM...</div>
+  <div class="ls2" id="loadStatus">Initialisation</div>
 </div>
 
-<div class="panel" id="panel">Clique sur une région en cercle bleu pour voire les prévisions</div>
-<div id="map"></div>
+<nav>
+  <a class="logo" href="#">
+    <div class="logo-badge">🌤</div>
+    <div class="logo-name">SEN Météo <small>ANACIM · Live</small></div>
+  </a>
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="showTab('tab-accueil',this)">🏠 Accueil</button>
+    <button class="nav-tab" onclick="showTab('tab-previsions',this)">📅 Prévisions</button>
+    <button class="nav-tab" onclick="showTab('tab-houle',this)">🌊 Houle</button>
+    <button class="nav-tab" onclick="showTab('tab-anacim',this)">📋 Bulletins</button>
+    <button class="nav-tab" onclick="showTab('tab-historique',this)">📊 Historique 60j</button>
+  </div>
+  <div class="live-pill"><div class="live-dot"></div><span id="lastUpdate">Live</span></div>
+</nav>
+
+<div id="alertsContainer"></div>
+
+<!-- ══ TAB ACCUEIL ══ -->
+<div id="tab-accueil" class="tab-pane active">
+
+  <!-- SEARCH BAR -->
+  <div class="search-wrap">
+    <div class="search-box" id="searchBox">
+      <span class="search-icon">🔍</span>
+      <input type="text" id="searchInput" placeholder="Rechercher une ville au Sénégal..." autocomplete="off" oninput="doSearch(this.value)" onfocus="doSearch(this.value)">
+    </div>
+    <div class="search-results" id="searchResults" style="display:none"></div>
+  </div>
+
+  <!-- HERO: Animated weather map background -->
+  <div class="hero">
+    <canvas id="weatherMapCanvas"></canvas>
+    <div class="hero-ov"></div>
+    <div class="hero-body">
+      <div>
+        <div class="wx-card">
+          <div class="city-hdr">
+            <div>
+              <div class="cname" id="mainCityName">Dakar</div>
+              <div class="csub" id="mainCitySub">Chargement...</div>
+            </div>
+            <div class="unit-tgl">
+              <button class="ubt active" onclick="setUnit('C',this)">°C</button>
+              <button class="ubt" onclick="setUnit('F',this)">°F</button>
+            </div>
+          </div>
+          <div class="temp-row">
+            <div class="tbig" id="mainTemp">--<sup>°</sup></div>
+            <div class="tside">
+              <div class="wxi" id="mainIcon">🌡️</div>
+              <div class="wxd" id="mainDesc">Chargement...</div>
+              <div class="wxr">↑<span id="mainMax">--</span>° <em>↓<span id="mainMin">--</span>°</em></div>
+              <div class="wxf" id="mainFeels">Ressenti: --°</div>
+            </div>
+          </div>
+          <div class="stats-row">
+            <div class="stat"><div class="si">💧</div><div class="sv"><span id="sHum">--</span><span class="su">%</span></div><div class="sl">Humidité</div></div>
+            <div class="stat"><div class="si">🌬️</div><div class="sv"><span id="sWind">--</span><span class="su">km/h</span></div><div class="sl">Vent</div></div>
+            <div class="stat"><div class="si">☀️</div><div class="sv"><span id="sUV">--</span><span class="su">/11</span></div><div class="sl">UV</div></div>
+            <div class="stat"><div class="si">🌡️</div><div class="sv"><span id="sPres">--</span><span class="su">hPa</span></div><div class="sl">Pression</div></div>
+          </div>
+        </div>
+        <div class="hourly-card">
+          <div class="sec-title">Prévisions horaires — <span id="hourlyCity">Dakar</span></div>
+          <div class="hscroll" id="hourlyScroll"><div style="color:var(--text3);font-size:11px;padding:6px">Chargement...</div></div>
+        </div>
+      </div>
+      <div class="side-col">
+        <div class="city-list-card">
+          <div class="sec-title">Grandes villes</div>
+          <div id="cityList"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ CARTE THERMIQUE LEAFLET + OPENSTREETMAP ══ -->
+  <div class="thermo-section">
+    <div class="thermo-card">
+      <div class="thermo-header">
+        <div class="thermo-title">
+          <div class="live-dot"></div>
+          <span style="font-family:var(--fh);font-size:13px;font-weight:700">🗺️ Carte Thermique Interactive — Sénégal</span>
+        </div>
+        <div class="thermo-legend">
+          <div class="leg-item"><div class="leg-dot" style="background:#f87171"></div>Canicule &gt;40°</div>
+          <div class="leg-item"><div class="leg-dot" style="background:#fb923c"></div>Chaud 35–40°</div>
+          <div class="leg-item"><div class="leg-dot" style="background:#fbbf24"></div>Tiède 28–35°</div>
+          <div class="leg-item"><div class="leg-dot" style="background:#34d399"></div>Frais &lt;28°</div>
+        </div>
+      </div>
+      <!-- Leaflet Map -->
+      <div id="leafletMap"></div>
+      <div class="thermo-foot">
+        <div class="leg-bar-wrap">
+          <div class="leg-bar"></div>
+          <div class="leg-lbs"><span>24°C</span><span>30°C</span><span>36°C</span><span>42°C</span></div>
+        </div>
+        <span style="font-size:9px;color:var(--text3);font-family:var(--fm)">Cliquez sur un marqueur pour plus de détails</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ BULLETIN VIDÉO ANACIM — Lien direct YouTube ══ -->
+  <div class="video-section">
+    <div class="video-card" style="padding:12px 14px">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+        <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0">
+          <div class="anacim-pill" style="flex-shrink:0">ANACIM</div>
+          <div style="min-width:0">
+            <div class="vtitle" style="font-size:12px">📺 Bulletin Météo du Soir — ANACIM / RTS</div>
+            <div class="vsub" style="margin-top:3px">
+              <span class="badge-soir">SOIR</span>
+              <span id="rtsTodayDate" style="color:var(--text3)">--</span>
+            </div>
+          </div>
+        </div>
+        <a id="ytDirectLink"
+           href="https://www.youtube.com/@ANACIMPrevisions"
+           target="_blank" rel="noopener"
+           style="display:inline-flex;align-items:center;gap:8px;background:#ff0000;color:#fff;text-decoration:none;font-family:var(--fh);font-size:12px;font-weight:700;padding:9px 18px;border-radius:9px;flex-shrink:0;box-shadow:0 3px 14px rgba(255,0,0,.35);transition:all .18s"
+           onmouseover="this.style.background='#cc0000';this.style.transform='translateY(-1px)'"
+           onmouseout="this.style.background='#ff0000';this.style.transform='translateY(0)'">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="white" style="flex-shrink:0"><path d="M8 5v14l11-7z"/></svg>
+          Regarder le bulletin du soir
+        </a>
+      </div>
+      <div style="margin-top:10px;padding-top:10px;border-top:.5px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+        <div style="display:flex;align-items:center;gap:7px;min-width:0;flex:1">
+          <div class="vid-status-dot" style="flex-shrink:0;width:5px;height:5px;border-radius:50%;background:var(--green)"></div>
+          <span id="vidTitleEl" style="font-size:10.5px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Chargement...</span>
+        </div>
+        <button onclick="openYTSearch()"
+                style="background:var(--bg3);border:.5px solid var(--border);color:var(--text2);font-family:var(--fb);font-size:10px;padding:4px 11px;border-radius:6px;cursor:pointer;flex-shrink:0;transition:all .15s"
+                onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'"
+                onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text2)'">
+          🔍 Chercher sur YouTube
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="main-content">
+    <div class="src-badge"><div class="live-dot"></div>Open-Meteo · ANACIM · Marine API · <span id="srcTime">--</span></div>
+    <div class="sec-title" style="margin-bottom:9px">Prévisions 7 jours</div>
+    <div class="forecast-grid" id="forecastGrid"></div>
+    <div class="sec-title" style="margin-bottom:9px">Détails météo</div>
+    <div class="details-grid" id="detailsGrid"></div>
+    <div class="sec-title" style="margin-bottom:9px">Toutes les régions</div>
+    <div class="regions-grid" id="regionsGrid"></div>
+  </div>
+</div>
+
+<!-- ══ TAB PRÉVISIONS ══ -->
+<div id="tab-previsions" class="tab-pane">
+  <div class="main-content" style="padding-top:14px">
+    <div style="background:rgba(56,189,248,.05);border:.5px solid rgba(56,189,248,.18);border-radius:var(--rs);padding:11px 13px;margin-bottom:12px;font-size:11.5px;color:var(--text2)">
+      <strong style="color:var(--accent)">📋 Source officielle ANACIM</strong> — Les bulletins reproduisent les émissions officielles de l'<strong>Agence Nationale de l'Aviation Civile et de la Météorologie du Sénégal (ANACIM)</strong>, enrichies avec les données Open-Meteo en temps réel.
+    </div>
+    <div class="sec-title" style="margin-bottom:9px">Prévisions détaillées 14 jours — Sénégal</div>
+    <div style="display:flex;gap:5px;margin-bottom:12px;flex-wrap:wrap" id="prevCityBtns"></div>
+    <div id="prevDetails"></div>
+  </div>
+</div>
+
+<!-- ══ TAB HOULE ══ -->
+<div id="tab-houle" class="tab-pane">
+  <div class="main-content" style="padding-top:14px">
+    <div class="sec-title" style="margin-bottom:9px">État de la mer — Côtes sénégalaises</div>
+    <div class="houle-grid" id="houleGrid"></div>
+    <div class="sec-title" style="margin-bottom:9px">Prévisions houle 7 jours</div>
+    <div class="card" id="houleChart7j"></div>
+    <div class="sec-title" style="margin-bottom:9px">Alertes maritimes</div>
+    <div id="marineAlerts"></div>
+  </div>
+</div>
+
+<!-- ══ TAB BULLETINS ANACIM ══ -->
+<div id="tab-anacim" class="tab-pane">
+  <div class="main-content" style="padding-top:14px">
+    <div style="background:rgba(56,189,248,.05);border:.5px solid rgba(56,189,248,.18);border-radius:var(--rs);padding:11px 13px;margin-bottom:12px;font-size:11.5px;color:var(--text2)">
+      <strong style="color:var(--accent)">📡 Source officielle ANACIM</strong> — Les bulletins ci-dessous reproduisent les émissions officielles de l'<strong>Agence Nationale de l'Aviation Civile et de la Météorologie du Sénégal (ANACIM)</strong>, enrichies avec les données Open-Meteo temps réel. Téléchargez chaque bulletin en PDF.
+    </div>
+    <div class="sec-title" style="margin-bottom:8px">Bulletins météorologiques officiels</div>
+    <div class="voice-bar">
+      <button class="voice-btn" id="voicePlayBtn" onclick="toggleVoice()">🎙️ Lire le bulletin</button>
+      <div style="display:flex;gap:4px;flex-wrap:wrap">
+        <button class="vlang-btn active" onclick="setVoiceLang('fr',this)">🇫🇷 Français</button>
+        <button class="vlang-btn" onclick="setVoiceLang('en',this)">🇬🇧 English</button>
+        <button class="vlang-btn" onclick="setVoiceLang('wo',this)">🇸🇳 Wolof</button>
+      </div>
+      <div class="voice-waves hidden" id="voiceWaves">
+        <div class="vw"></div><div class="vw"></div><div class="vw"></div><div class="vw"></div><div class="vw"></div>
+      </div>
+      <span class="vstatus" id="voiceStatus">Sélectionnez un bulletin et une langue</span>
+    </div>
+    <div class="bulletin-list" id="bulletinList"></div>
+  </div>
+</div>
+
+<!-- ══ TAB HISTORIQUE ══ -->
+<div id="tab-historique" class="tab-pane">
+  <div class="main-content" style="padding-top:14px">
+    <div class="sec-title" style="margin-bottom:9px">Historique 60 jours — Toutes localités du Sénégal</div>
+    <div style="display:flex;gap:5px;margin-bottom:10px;flex-wrap:wrap" id="histoCityBtns"></div>
+    <div class="histo-stats" id="histoStats"></div>
+    <div class="chart-wrap">
+      <div class="sec-title">Températures max/min (°C)</div>
+      <div style="position:relative;height:240px"><canvas id="histoTempChart"></canvas></div>
+    </div>
+    <div class="chart-wrap">
+      <div class="sec-title">Précipitations cumulées (mm)</div>
+      <div style="position:relative;height:170px"><canvas id="histoRainChart"></canvas></div>
+    </div>
+    <div class="chart-wrap">
+      <div class="sec-title">Houle maximale (m) — Dakar</div>
+      <div style="position:relative;height:180px"><canvas id="histoHouleChart"></canvas></div>
+    </div>
+    <div class="update-bar">
+      <span id="histoUpdateTime">Données: Open-Meteo ERA5 Archive API</span>
+      <button class="refresh-btn" onclick="reloadAll()">↻ Actualiser</button>
+    </div>
+  </div>
+</div>
 
 <script>
-
-/* ================= CACHE ================= */
-function cacheGet(k){
-let d=localStorage.getItem(k);
-return d ? JSON.parse(d) : null;
-}
-
-function cacheSet(k,v){
-localStorage.setItem(k,JSON.stringify({t:Date.now(),v}));
-}
-
-/* ================= METEO ================= */
-async function openMeteo(lat,lon){
-try{
-let r=await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`);
-let d=await r.json();
-
-return{
-temp:d.current_weather?.temperature ?? 28,
-wind:d.current_weather?.windspeed ?? 10,
-rain:Math.random()*10
-};
-}catch{
-return{temp:28,wind:10,rain:2};
-}
-}
-
-/* ================= IA ================= */
-function advancedForecast(base){
-
-let arr=[];
-let trend=(Math.random()*2)-1;
-let seasonBoost = Math.random()*0.5;
-
-for(let i=0;i<3;i++){
-
-base.temp += trend + seasonBoost;
-base.wind += Math.random()*0.9;
-base.rain += Math.random()*2.2;
-
-if(base.temp>46) base.temp-=2;
-
-arr.push({
-h:(i+1)*24,
-temp:base.temp,
-wind:base.wind,
-rain:base.rain
-});
-}
-
-return arr;
-}
-
-/* ================= REGIONS ================= */
-const regions=[
-["Dakar",14.7167,-17.4677],
-["Thiès",14.7886,-16.9359],
-["Diourbel",14.6570,-16.2314],
-["Fatick",14.3390,-16.4111],
-["Kaolack",14.1511,-16.0720],
-["Kaffrine",14.1053,-15.5469],
-["Louga",15.6100,-16.2514],
-["Saint-Louis",16.0179,-16.4896],
-["Matam",15.6600,-13.2578],
-["Tambacounda",13.7707,-13.6673],
-["Kédougou",12.5603,-12.1742],
-["Kolda",12.8833,-14.9500],
-["Sédhiou",12.7081,-15.5569],
-["Ziguinchor",12.5681,-16.2739]
+// ══════════════════════════════════════════════════════════
+// DONNÉES — 27 localités du Sénégal avec vraies coordonnées GPS
+// ══════════════════════════════════════════════════════════
+const CITIES=[
+  {n:'Dakar',        lat:14.6937, lon:-17.4441, reg:"Cap-Vert",          dot:'cool'},
+  {n:'Saint-Louis',  lat:16.0179, lon:-16.4896, reg:'Nord',              dot:'warm'},
+  {n:'Thiès',        lat:14.7833, lon:-16.9167, reg:'Thiès',             dot:'med'},
+  {n:'Kaolack',      lat:14.1505, lon:-16.0726, reg:'Sine-Saloum',       dot:'warm'},
+  {n:'Ziguinchor',   lat:12.5500, lon:-16.2712, reg:'Casamance',         dot:'med'},
+  {n:'Tambacounda',  lat:13.7709, lon:-13.6670, reg:'Est',               dot:'hot'},
+  {n:'Matam',        lat:15.6559, lon:-13.2556, reg:'Nord-Est',          dot:'hot'},
+  {n:'Kolda',        lat:12.8941, lon:-14.9408, reg:'Haute Casamance',   dot:'med'},
+  {n:'Kédougou',     lat:12.5540, lon:-12.1747, reg:'Sud-Est',           dot:'warm'},
+  {n:'Louga',        lat:15.6194, lon:-16.2245, reg:'Louga',             dot:'warm'},
+  {n:'Diourbel',     lat:14.6528, lon:-16.2312, reg:'Diourbel',          dot:'warm'},
+  {n:'Fatick',       lat:14.3390, lon:-16.4057, reg:'Petite Côte',       dot:'med'},
+  {n:'Mbour',        lat:14.3853, lon:-16.9712, reg:'Petite Côte',       dot:'med'},
+  {n:'Kaffrine',     lat:14.1050, lon:-15.5508, reg:'Centre',            dot:'warm'},
+  {n:'Sédhiou',      lat:12.7080, lon:-15.5566, reg:'Haute Casamance',   dot:'med'},
+  {n:'Cap Skiring',  lat:12.3950, lon:-16.7440, reg:'Casamance Sud',     dot:'med'},
+  {n:'Bakel',        lat:14.9069, lon:-12.4603, reg:'Est (Fleuve)',      dot:'hot'},
+  {n:'Linguère',     lat:15.3933, lon:-15.1167, reg:'Ferlo',             dot:'warm'},
+  {n:'Podor',        lat:16.6500, lon:-14.9500, reg:'Nord (Fleuve)',     dot:'hot'},
+  {n:'Richard-Toll', lat:16.4607, lon:-15.7004, reg:'Nord (Fleuve)',     dot:'warm'},
+  {n:'Vélingara',    lat:13.1500, lon:-14.1167, reg:'Haute Casamance',   dot:'med'},
+  {n:'Bignona',      lat:12.8167, lon:-16.2333, reg:'Casamance',         dot:'med'},
+  {n:'Gossas',       lat:14.4994, lon:-16.0579, reg:'Sine',              dot:'med'},
+  {n:'Nioro du Rip', lat:13.7500, lon:-15.7500, reg:'Sine-Saloum',       dot:'warm'},
+  {n:'Goudiry',      lat:14.1833, lon:-12.7167, reg:'Est',               dot:'hot'},
+  {n:'Ranérou',      lat:15.3000, lon:-13.9667, reg:'Matam',             dot:'hot'},
+  {n:'Saraya',       lat:12.8167, lon:-11.7500, reg:'Kédougou',          dot:'warm'},
 ];
 
-/* ================= MAP BASE ================= */
-const satellite = L.tileLayer(
-'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
-);
+const COASTAL=[
+  {n:'Dakar',       lat:14.6937,lon:-17.4441},
+  {n:'Saint-Louis', lat:16.0179,lon:-16.4896},
+  {n:'Ziguinchor',  lat:12.5500,lon:-16.2712},
+  {n:'Mbour',       lat:14.3853,lon:-16.9712},
+];
 
-const street = L.tileLayer(
-'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
-);
+let weatherData={},houleData={},histoData={};
+let selectedCity=0,unit='C',histoCity=0;
+let histoTempChart=null,histoRainChart=null,histoHouleChart=null;
+let voiceLang='fr',currentBulletinIdx=0,voiceSpeaking=false;
+let videoDayOffset=0;
+let leafletMap=null,leafletMarkers=[];
+let currentVideoId=null;
 
-/* default */
-const map=L.map('map',{
-center:[14.5,-16.5],
-zoom:6.5,
-layers:[satellite]
+const ICONS={0:'☀️',1:'🌤️',2:'⛅',3:'☁️',45:'🌫️',48:'🌫️',51:'🌦️',53:'🌦️',55:'🌧️',61:'🌦️',63:'🌧️',65:'🌧️',71:'❄️',73:'❄️',75:'❄️',80:'🌦️',81:'🌧️',82:'⛈️',95:'⛈️',99:'⛈️'};
+const DESCS={0:'Ciel dégagé',1:'Majoritairement dégagé',2:'Partiellement nuageux',3:'Couvert',45:'Brouillard',48:'Brouillard givrant',51:'Bruine légère',53:'Bruine modérée',55:'Bruine dense',61:'Pluie légère',63:'Pluie modérée',65:'Pluie forte',80:'Averses légères',81:'Averses modérées',82:'Averses violentes',95:'Orage',99:'Orage fort'};
+const WINDS=['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSO','SO','OSO','O','ONO','NO','NNO'];
+function wDir(d){return WINDS[Math.round(d/22.5)%16]}
+function cToF(c){return Math.round(c*9/5+32)}
+function dT(c){return unit==='C'?Math.round(c):cToF(c)}
+function wI(c){return ICONS[c]||'🌡️'}
+function wD(c){return DESCS[c]||'Variable'}
+
+// ══════════════════════════════════════════════════════════
+// TEMPÉRATURE → COULEUR
+// ══════════════════════════════════════════════════════════
+function tCol(t){
+  if(t>=40) return {bg:'#f87171',text:'#fff',border:'#dc2626'};
+  if(t>=35) return {bg:'#fb923c',text:'#fff',border:'#ea580c'};
+  if(t>=28) return {bg:'#fbbf24',text:'#1a1a1a',border:'#d97706'};
+  return {bg:'#34d399',text:'#1a1a1a',border:'#059669'};
+}
+function tHex(t){
+  const n=Math.min(1,Math.max(0,(t-24)/18));
+  const r=Math.round(20+n*230),g=Math.round(155-n*125),b=Math.round(248-n*210);
+  return `rgb(${r},${g},${b})`;
+}
+
+// ══════════════════════════════════════════════════════════
+// LEAFLET MAP INITIALIZATION
+// ══════════════════════════════════════════════════════════
+function initLeafletMap(){
+  // Sénégal center + zoom to show the whole country
+  leafletMap=L.map('leafletMap',{
+    zoomControl:true,
+    attributionControl:true,
+    minZoom:5,
+    maxZoom:12,
+  }).setView([14.45,-14.45],6);
+
+  // Dark OpenStreetMap tiles with CSS filter for dark theme
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+    attribution:'© <a href="https://www.openstreetmap.org/copyright" style="color:#38bdf8">OpenStreetMap</a> | <a href="https://www.anacim.sn" style="color:#38bdf8">ANACIM</a>',
+    maxZoom:19,
+    crossOrigin:true
+  }).addTo(leafletMap);
+
+  // Fit Sénégal bounds
+  const senBounds=L.latLngBounds(
+    L.latLng(12.3, -17.6),  // SW
+    L.latLng(16.7, -11.4)   // NE
+  );
+  leafletMap.fitBounds(senBounds, {padding:[10,10]});
+}
+
+function renderLeafletMarkers(){
+  if(!leafletMap) return;
+
+  // Remove existing markers
+  leafletMarkers.forEach(m=>m.remove());
+  leafletMarkers=[];
+
+  CITIES.forEach((city,i)=>{
+    const d=weatherData[i];
+    const temp=d?Math.round(d.current.temperature_2m):null;
+    const code=d?d.current.weather_code:0;
+    const col=temp!==null?tCol(temp):{bg:'rgba(100,116,139,.8)',text:'#fff',border:'#475569'};
+
+    // Custom divIcon with weather icon + temperature
+    const iconHtml=`<div class="wx-marker">
+      <div class="wx-marker-icon">${wI(code)}</div>
+      <div class="wx-marker-temp" style="background:${col.bg};color:${col.text};border-color:${col.border}">
+        ${temp!==null?temp+'°C':'--'}
+      </div>
+      <div class="wx-marker-name">${city.n}</div>
+    </div>`;
+
+    const icon=L.divIcon({
+      html:iconHtml,
+      className:'',
+      iconSize:[70,62],
+      iconAnchor:[35,6]
+    });
+
+    const marker=L.marker([city.lat,city.lon],{icon,zIndexOffset:i===selectedCity?1000:0}).addTo(leafletMap);
+
+    // Popup content
+    if(d){
+      const c=d.current,dl=d.daily;
+      const popupHtml=`<div>
+        <div class="pop-city">${city.n}</div>
+        <div class="pop-temp" style="color:${tHex(temp)}">${wI(code)} ${temp}°C</div>
+        <div class="pop-desc">${wD(code)} · ${city.reg}</div>
+        <div class="pop-grid">
+          <div>💧 Humidité</div><div><span>${c.relative_humidity_2m}%</span></div>
+          <div>🌬️ Vent</div><div><span>${Math.round(c.wind_speed_10m)} km/h ${wDir(c.wind_direction_10m||0)}</span></div>
+          <div>↑ Max</div><div><span style="color:#fb923c">${Math.round(dl.temperature_2m_max[0])}°C</span></div>
+          <div>↓ Min</div><div><span style="color:#7dd3fc">${Math.round(dl.temperature_2m_min[0])}°C</span></div>
+          <div>☀️ UV</div><div><span>${Math.round(c.uv_index||0)}/11</span></div>
+          <div>💧 Pluie</div><div><span>${dl.precipitation_probability_max[0]||0}%</span></div>
+        </div>
+        <button class="pop-btn" onclick="selectCity(${i});leafletMap.closePopup()">📊 Voir prévisions détaillées</button>
+      </div>`;
+      marker.bindPopup(popupHtml,{maxWidth:240,className:'dark-popup'});
+    } else {
+      marker.bindPopup(`<div class="pop-city">${city.n}</div><div style="font-size:11px;color:var(--text3)">Données en chargement...</div>`);
+    }
+
+    marker.on('click',()=>{
+      marker.openPopup();
+    });
+
+    leafletMarkers.push(marker);
+  });
+}
+
+// ══════════════════════════════════════════════════════════
+// VIDEO ANACIM — Chargement automatique dernière vidéo
+// ══════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════
+// VIDEO ANACIM — Solution ROBUSTE multi-proxy RSS
+// Même principe que meteo-221.web.app/bulletins
+
+// ═══════════════════════════════════════════════════════════════
+// VIDEO ANACIM — Méthode EXACTE de meteo-221.web.app
+// Principe : iframe YouTube directe, AUCUN fetch/RSS/proxy
+// La dernière vidéo connue est chargée immédiatement.
+// Le bouton "Voir sur YouTube" permet de trouver la vidéo du jour.
+// ═══════════════════════════════════════════════════════════════
+
+const ANACIM_CHANNEL_ID='UCjkkQJNGIJwpaKmEEXY3fug';
+
+// ── Vidéos connues par ordre chronologique décroissant ──
+// Mettre ici la toute dernière vidéo publiée en premier
+const KNOWN_VIDEOS=[
+  {id:'25vAEE3NmSA', date:'2026-03-18', title:'SOIR Bulletin Météo ANACIM RTS FRANCAIS'},
+  {id:'t3i18PqNdIY', date:'2026-01-01', title:'SOIR Bulletin Météo ANACIM RTS Français'},
+  {id:'g0mw3tsnvnY', date:'2025-10-02', title:'SOIR Bulletin Météo ANACIM RTS Français du Jeudi 02 Octobre 2025'},
+  {id:'bB5m5lPrg6k', date:'2025-10-09', title:'SOIR Bulletin Météo ANACIM RTS Français du Jeudi 09 Octobre 2025'},
+  {id:'6C0hUchCOfo', date:'2025-09-17', title:'SOIR Bulletin Météo ANACIM RTS Français du Mercredi 17 Septembre 2025'},
+  {id:'W0UhZQGapeY', date:'2025-09-27', title:'SOIR Bulletin Météo ANACIM RTS Français du Vendredi 27 Septembre 2025'},
+  {id:'N6y5Jig7PdE', date:'2025-03-10', title:'SOIR Bulletin Météo ANACIM RTS Français du Mardi 10 Mars 2025'},
+];
+
+
+// ── Helpers date en français ──
+const JOURS_FR=['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
+const MOIS_FR=['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+const MOIS_FR_COURT=['Jan','Fév','Mar','Avr','Mai','Juin','Juil','Août','Sep','Oct','Nov','Déc'];
+
+function getTodayTitle(d){
+  // Génère "SOIR Bulletin Météo ANACIM RTS FRANCAIS du Lundi 11 Mai 2026"
+  d=d||new Date();
+  const jour=JOURS_FR[d.getDay()];
+  const dd=d.getDate();
+  const mois=MOIS_FR[d.getMonth()][0].toUpperCase()+MOIS_FR[d.getMonth()].slice(1);
+  const an=d.getFullYear();
+  return `SOIR Bulletin Météo ANACIM RTS FRANCAIS du ${jour} ${dd} ${mois} ${an}`;
+}
+
+function getTodaySearchURL(d){
+  d=d||new Date();
+  const q=encodeURIComponent(getTodayTitle(d));
+  return `https://www.youtube.com/results?search_query=${q}`;
+}
+
+function initVideo(){
+  const now=new Date();
+  // Date longue dans le sous-titre
+  document.getElementById('rtsTodayDate').textContent=
+    now.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+
+  // Titre dynamique du jour J
+  const todayTitle=getTodayTitle(now);
+  const titleShort=todayTitle.length>72?todayTitle.slice(0,72)+'…':todayTitle;
+  document.getElementById('vidTitleEl').textContent=titleShort;
+
+  // Lien direct = recherche YouTube ciblée sur la vidéo du jour J
+  const link=document.getElementById('ytDirectLink');
+  if(link){
+    link.href=getTodaySearchURL(now);
+    link.title=todayTitle;
+  }
+
+  // Remet à jour le lien chaque jour à minuit sans recharger la page
+  const msJusquaMinuit=new Date(now.getFullYear(),now.getMonth(),now.getDate()+1)-now;
+  setTimeout(()=>{initVideo();setInterval(initVideo,86400000);},msJusquaMinuit);
+}
+
+/* ── Recherche YouTube du jour (bouton secondaire) ── */
+function openYTSearch(){
+  const d=new Date();
+  window.open(getTodaySearchURL(d),'_blank');
+}
+
+
+// ══════════════════════════════════════════════════════════
+// SEARCH
+// ══════════════════════════════════════════════════════════
+function doSearch(q){
+  const res=document.getElementById('searchResults');
+  if(!q.trim()){res.style.display='none';return;}
+  const matches=CITIES.filter(c=>c.n.toLowerCase().includes(q.toLowerCase())||c.reg.toLowerCase().includes(q.toLowerCase()));
+  if(!matches.length){res.style.display='none';return;}
+  res.innerHTML=matches.slice(0,8).map(c=>{
+    const i=CITIES.indexOf(c);
+    const d=weatherData[i];
+    const temp=d?dT(d.current.temperature_2m):'--';
+    const ico=d?wI(d.current.weather_code):'🌡️';
+    return `<div class="search-result-item" onclick="selectCityFromSearch(${i})">
+      <div class="sri-icon">${ico}</div>
+      <div class="sri-info"><div class="sri-name">${c.n}</div><div class="sri-reg">${c.reg}</div></div>
+      <div class="sri-temp">${temp}°</div>
+    </div>`;
+  }).join('');
+  res.style.display='block';
+}
+function selectCityFromSearch(i){
+  selectCity(i);
+  document.getElementById('searchInput').value=CITIES[i].n;
+  document.getElementById('searchResults').style.display='none';
+}
+document.addEventListener('click',e=>{
+  if(!e.target.closest('#searchBox')&&!e.target.closest('#searchResults'))
+    document.getElementById('searchResults').style.display='none';
 });
 
-/* ================= SWITCH FUNCTIONS ================= */
-function setSatellite(){
-map.removeLayer(street);
-map.addLayer(satellite);
+// ══════════════════════════════════════════════════════════
+// API FETCH
+// ══════════════════════════════════════════════════════════
+function showLoad(m){document.getElementById('loadStatus').textContent=m}
+async function fetchCity(city){
+  const url=`https://api.open-meteo.com/v1/forecast?latitude=${city.lat}&longitude=${city.lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,wind_direction_10m,surface_pressure,uv_index,precipitation&hourly=temperature_2m,precipitation_probability,precipitation,weather_code,wind_speed_10m&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,uv_index_max,wind_speed_10m_max,sunrise,sunset&timezone=Africa%2FDakar&forecast_days=14`;
+  const r=await fetch(url);if(!r.ok)throw new Error();return r.json();
+}
+async function fetchHoule(city){
+  try{const url=`https://marine-api.open-meteo.com/v1/marine?latitude=${city.lat}&longitude=${city.lon}&current=wave_height,wave_direction,wave_period,wind_wave_height&hourly=wave_height,wave_direction,wave_period&daily=wave_height_max,wave_period_max&timezone=Africa%2FDakar&forecast_days=7`;const r=await fetch(url);if(!r.ok)return null;return r.json();}catch{return null}
+}
+async function fetchHisto(city){
+  const e=new Date();e.setDate(e.getDate()-1);const s=new Date(e);s.setDate(s.getDate()-59);
+  const f=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  const url=`https://archive-api.open-meteo.com/v1/archive?latitude=${city.lat}&longitude=${city.lon}&start_date=${f(s)}&end_date=${f(e)}&daily=temperature_2m_max,temperature_2m_min,precipitation_sum&timezone=Africa%2FDakar`;
+  const r=await fetch(url);if(!r.ok)throw new Error();return r.json();
+}
+async function fetchMarineHisto(){
+  try{const e=new Date();e.setDate(e.getDate()-1);const s=new Date(e);s.setDate(s.getDate()-59);
+  const f=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  const url=`https://marine-api.open-meteo.com/v1/marine?latitude=${COASTAL[0].lat}&longitude=${COASTAL[0].lon}&start_date=${f(s)}&end_date=${f(e)}&daily=wave_height_max&timezone=Africa%2FDakar`;
+  const r=await fetch(url);if(!r.ok)return null;return r.json();}catch{return null}
 }
 
-function setStreet(){
-map.removeLayer(satellite);
-map.addLayer(street);
+// ══════════════════════════════════════════════════════════
+// RENDER FUNCTIONS
+// ══════════════════════════════════════════════════════════
+function showTab(id,btn){
+  document.querySelectorAll('.tab-pane').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(b=>b.classList.remove('active'));
+  document.getElementById(id).classList.add('active');btn.classList.add('active');
+  // Fix Leaflet map size on tab show
+  if(id==='tab-accueil'&&leafletMap){setTimeout(()=>leafletMap.invalidateSize(),100);}
+}
+function setUnit(u,btn){
+  unit=u;document.querySelectorAll('.ubt').forEach(b=>b.classList.remove('active'));btn.classList.add('active');
+  if(Object.keys(weatherData).length)renderAll();
+}
+function selectCity(i){
+  selectedCity=i;renderMain();renderCityList();renderLeafletMarkers();
+  // Pan map to selected city
+  if(leafletMap){
+    const city=CITIES[i];
+    leafletMap.panTo([city.lat,city.lon],{animate:true,duration:.5});
+    if(leafletMarkers[i])leafletMarkers[i].openPopup();
+  }
 }
 
-/* ================= CHART ================= */
-let chart;
-
-function drawChart(f){
-
-let ctx=document.createElement("canvas");
-document.getElementById("panel").appendChild(ctx);
-
-if(chart) chart.destroy();
-
-chart=new Chart(ctx,{
-type:"line",
-data:{
-labels:["24h","48h","72h"],
-datasets:[
-{
-label:"Température (°C)",
-data:[f[0].temp,f[1].temp,f[2].temp],
-borderColor:"#00e5ff",
-tension:0.4
-},
-{
-label:"Pluie (mm)",
-data:[f[0].rain,f[1].rain,f[2].rain],
-borderColor:"#4ade80",
-tension:0.4
+function renderMain(){
+  const d=weatherData[selectedCity];if(!d)return;
+  const c=d.current,dl=d.daily,city=CITIES[selectedCity];
+  const now=new Date();
+  document.getElementById('mainCityName').textContent=city.n;
+  document.getElementById('mainCitySub').textContent=`${city.reg} · ${now.getHours()}h${String(now.getMinutes()).padStart(2,'0')}`;
+  document.getElementById('mainTemp').innerHTML=`${dT(c.temperature_2m)}<sup>°</sup>`;
+  document.getElementById('mainIcon').textContent=wI(c.weather_code);
+  document.getElementById('mainDesc').textContent=wD(c.weather_code);
+  document.getElementById('mainMax').textContent=dT(dl.temperature_2m_max[0]);
+  document.getElementById('mainMin').textContent=dT(dl.temperature_2m_min[0]);
+  document.getElementById('mainFeels').textContent=`Ressenti: ${dT(c.apparent_temperature)}°`;
+  document.getElementById('sHum').textContent=c.relative_humidity_2m;
+  document.getElementById('sWind').textContent=Math.round(c.wind_speed_10m);
+  document.getElementById('sUV').textContent=Math.round(c.uv_index||0);
+  document.getElementById('sPres').textContent=Math.round(c.surface_pressure);
+  document.getElementById('hourlyCity').textContent=city.n;
+  document.getElementById('srcTime').textContent=now.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+  document.getElementById('lastUpdate').textContent=`${now.getHours()}h${String(now.getMinutes()).padStart(2,'0')}`;
+  renderHourly(d);renderForecast(d);renderDetails(d);renderAlerts(d,city);
 }
-]
-},
-options:{
-responsive:true,
-maintainAspectRatio:false
+
+function renderHourly(d){
+  const now=new Date(),curH=now.getHours(),h=d.hourly,hs=document.getElementById('hourlyScroll');
+  hs.innerHTML='';let cnt=0;
+  for(let i=0;i<h.time.length&&cnt<24;i++){
+    const t=new Date(h.time[i]);
+    if(t<now&&t.getDate()===now.getDate()&&t.getHours()<curH)continue;
+    if(cnt>23)break;
+    const isNow=t.getHours()===curH&&t.getDate()===now.getDate();
+    hs.innerHTML+=`<div class="hi${isNow?' now':''}">
+      <div class="ht">${isNow?'Maint.':t.getHours()+'h'}</div>
+      <div class="hic">${wI(h.weather_code[i])}</div>
+      <div class="htp">${dT(h.temperature_2m[i])}°</div>
+      <div class="hr">💧${h.precipitation_probability?h.precipitation_probability[i]:0}%</div>
+      <div class="hw">🌬${Math.round(h.wind_speed_10m[i])}km/h</div>
+    </div>`;cnt++;
+  }
 }
+
+function renderCityList(){
+  const cl=document.getElementById('cityList');cl.innerHTML='';
+  CITIES.slice(0,10).forEach((c,i)=>{
+    const d=weatherData[i];
+    cl.innerHTML+=`<div class="city-item${i===selectedCity?' sel':''}" onclick="selectCity(${i})">
+      <div class="ci-l"><div class="cdot ${c.dot}"></div>
+      <div><div class="cin">${c.n}</div><div class="cireg">${c.reg}</div></div></div>
+      <div class="ci-r"><span style="font-size:14px">${d?wI(d.current.weather_code):'🌡️'}</span>
+      <div class="citemp">${d?dT(d.current.temperature_2m):'--'}°</div></div>
+    </div>`;
+  });
+}
+
+function renderForecast(d){
+  const fg=document.getElementById('forecastGrid');fg.innerHTML='';
+  for(let i=0;i<7;i++){
+    const dt=new Date(d.daily.time[i]);
+    const dow=i===0?'Auj.':['Dim.','Lun.','Mar.','Mer.','Jeu.','Ven.','Sam.'][dt.getDay()];
+    const rain=d.daily.precipitation_probability_max[i]||0;
+    fg.innerHTML+=`<div class="f-day${i===0?' today':''}">
+      <div class="f-name">${dow}</div>
+      <div class="f-icon">${wI(d.daily.weather_code[i])}</div>
+      <div class="f-max">${dT(d.daily.temperature_2m_max[i])}°</div>
+      <div class="f-min">${dT(d.daily.temperature_2m_min[i])}°</div>
+      <div class="f-rain">💧${rain}%</div>
+      <div class="rain-bar"><div class="rain-fill" style="width:${rain}%"></div></div>
+    </div>`;
+  }
+}
+
+function renderDetails(d){
+  const c=d.current,dl=d.daily;
+  const sr=dl.sunrise?new Date(dl.sunrise[0]):null,ss=dl.sunset?new Date(dl.sunset[0]):null;
+  const srS=sr?`${sr.getHours()}h${String(sr.getMinutes()).padStart(2,'0')}`:'06h12';
+  const ssS=ss?`${ss.getHours()}h${String(ss.getMinutes()).padStart(2,'0')}`:'19h47';
+  const uv=Math.round(c.uv_index||dl.uv_index_max[0]||0);
+  const uvC=uv>=8?'var(--red)':uv>=5?'var(--orange)':'var(--yellow)';
+  const wmax=Math.round(dl.wind_speed_10m_max[0]);
+  document.getElementById('detailsGrid').innerHTML=`
+  <div class="detail-card"><div class="dh"><span class="dhi">🌅</span><span class="dht">Soleil</span></div>
+    <div class="dv" style="font-size:14px;display:flex;gap:6px">${srS}<span style="color:var(--text3)">—</span>${ssS}</div>
+    <div class="ds">~${sr&&ss?Math.round((ss-sr)/3600000):12}h de lumière</div></div>
+  <div class="detail-card"><div class="dh"><span class="dhi">💨</span><span class="dht">Vent</span></div>
+    <div class="dv">${Math.round(c.wind_speed_10m)}<span class="du">km/h</span></div>
+    <div class="ds">${wDir(c.wind_direction_10m||0)} · Max: ${wmax} km/h</div>
+    <div class="db"><div class="df" style="width:${Math.min(100,wmax/80*100)}%;background:linear-gradient(90deg,var(--a2),var(--a3))"></div></div></div>
+  <div class="detail-card"><div class="dh"><span class="dhi">💧</span><span class="dht">Humidité</span></div>
+    <div class="dv">${c.relative_humidity_2m}<span class="du">%</span></div>
+    <div class="ds">Pression: ${Math.round(c.surface_pressure)} hPa</div>
+    <div class="db"><div class="df" style="width:${c.relative_humidity_2m}%;background:linear-gradient(90deg,#34d399,#38bdf8)"></div></div></div>
+  <div class="detail-card"><div class="dh"><span class="dhi">☀️</span><span class="dht">Indice UV</span></div>
+    <div class="dv" style="color:${uvC}">${uv}<span class="du">/11</span></div>
+    <div class="ds">${uv>=8?'Très élevé':uv>=5?'Élevé':'Modéré'}</div>
+    <div class="db"><div class="df" style="width:${uv/11*100}%;background:linear-gradient(90deg,var(--yellow),var(--orange))"></div></div></div>`;
+}
+
+function renderAlerts(d,city){
+  const c=d.current,dl=d.daily,cont=document.getElementById('alertsContainer');
+  cont.innerHTML='';
+  if(dl.temperature_2m_max[0]>=40)cont.innerHTML+=`<div class="alert-strip danger"><div>🚨</div><div><strong>Alerte canicule</strong> — ${city.n}: ${Math.round(dl.temperature_2m_max[0])}°C. Risque élevé.</div></div>`;
+  else if(dl.temperature_2m_max[0]>=37)cont.innerHTML+=`<div class="alert-strip"><div>⚠️</div><div><strong>Vigilance chaleur</strong> — ${city.n}: ${Math.round(dl.temperature_2m_max[0])}°C.</div></div>`;
+  if(dl.wind_speed_10m_max[0]>=50)cont.innerHTML+=`<div class="alert-strip danger"><div>🌪️</div><div><strong>Alerte vent</strong> — Rafales ${Math.round(dl.wind_speed_10m_max[0])} km/h.</div></div>`;
+  if(dl.precipitation_probability_max[0]>=70)cont.innerHTML+=`<div class="alert-strip info"><div>ℹ️</div><div><strong>Avis pluie</strong> — Probabilité: ${dl.precipitation_probability_max[0]}%.</div></div>`;
+}
+
+function renderRegions(){
+  const rg=document.getElementById('regionsGrid');rg.innerHTML='';
+  CITIES.forEach((c,i)=>{
+    const d=weatherData[i];
+    rg.innerHTML+=`<div class="region-card" onclick="selectCity(${i})">
+      <div><div class="rn">${c.n}</div><div class="rsub">${c.reg}</div><div class="rp">💧${d?Math.round(d.current.precipitation||0):0}mm</div></div>
+      <div class="rr"><span class="ricon">${d?wI(d.current.weather_code):'🌡️'}</span><div class="rtemp">${d?Math.round(d.current.temperature_2m):'--'}°C</div></div>
+    </div>`;
+  });
+}
+
+// ══════════════════════════════════════════════════════════
+// HOULE
+// ══════════════════════════════════════════════════════════
+function renderHoule(){
+  const hg=document.getElementById('houleGrid');hg.innerHTML='';
+  COASTAL.forEach((c,i)=>{
+    const d=houleData[i];
+    if(!d||!d.current){hg.innerHTML+=`<div class="houle-card"><div class="hcity">${c.n}</div><div style="color:var(--text3);font-size:11px">N/A</div></div>`;return;}
+    const wh=(d.current.wave_height||0).toFixed(2),wp=Math.round(d.current.wave_period||0);
+    const col=wh>=2.5?'var(--red)':wh>=1.5?'var(--orange)':'var(--accent)';
+    hg.innerHTML+=`<div class="houle-card">
+      <div class="hcity">${c.n}</div><div class="hwave">🌊</div>
+      <div class="hht" style="color:${col}">${wh}<span class="hhtunit"> m</span></div>
+      <div class="hperiod">Période: ${wp}s</div>
+      <div class="hdir">${wDir(d.current.wave_direction||0)}</div>
+      ${parseFloat(wh)>=1.5?`<div class="halert">${parseFloat(wh)>=2.5?'⚠️ Mer agitée':'Mer peu agitée'}</div>`:`<div style="font-size:9.5px;color:var(--green);margin-top:3px">Mer calme</div>`}
+    </div>`;
+  });
+  const d7=houleData[0];
+  const hc=document.getElementById('houleChart7j');
+  if(d7&&d7.daily){
+    const labels=d7.daily.time.map(t=>{const dt=new Date(t);return ['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'][dt.getDay()]});
+    hc.innerHTML=`<div class="sec-title">Houle 7 jours — Dakar</div><div style="height:170px;position:relative"><canvas id="houleCanvas"></canvas></div>`;
+    setTimeout(()=>{
+      const ctx=document.getElementById('houleCanvas');
+      if(ctx)new Chart(ctx,{type:'line',data:{labels,datasets:[{label:'m',data:d7.daily.wave_height_max.map(v=>v?parseFloat(v.toFixed(2)):0),borderColor:'#38bdf8',backgroundColor:'rgba(56,189,248,.1)',tension:.4,fill:true,pointBackgroundColor:'#38bdf8',pointRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:'rgba(255,255,255,.03)'},ticks:{color:'#3d5a78'}},y:{grid:{color:'rgba(255,255,255,.03)'},ticks:{color:'#3d5a78',callback:v=>v+'m'},min:0}}}});
+    },100);
+  }
+  const ma=document.getElementById('marineAlerts');ma.innerHTML='';
+  COASTAL.forEach((c,i)=>{
+    const d=houleData[i];if(!d||!d.current)return;
+    const wh=d.current.wave_height||0;
+    if(wh>=2)ma.innerHTML+=`<div class="alert-strip danger"><div>⚓</div><div><strong>${c.n}</strong> — Mer agitée: ${wh.toFixed(1)}m.</div></div>`;
+    else if(wh>=1.5)ma.innerHTML+=`<div class="alert-strip"><div>⚓</div><div><strong>${c.n}</strong> — ${wh.toFixed(1)}m. Vigilance.</div></div>`;
+  });
+  if(!ma.innerHTML)ma.innerHTML=`<div class="alert-strip info"><div>⚓</div><div><strong>Mer calme</strong> sur les côtes.</div></div>`;
+}
+
+// ══════════════════════════════════════════════════════════
+// BULLETINS ANACIM + PDF
+// ══════════════════════════════════════════════════════════
+let bulletinsData=[];
+
+function renderBulletins(){
+  const d=weatherData[0];if(!d)return;
+  const c=d.current,dl=d.daily,now=new Date();
+  const dateStr=now.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  const maxT=Math.round(dl.temperature_2m_max[0]),minT=Math.round(dl.temperature_2m_min[0]);
+  const wind=Math.round(dl.wind_speed_10m_max[0]),rain=dl.precipitation_probability_max[0]||0;
+  const uv=Math.round(c.uv_index||0);
+  const dh=weatherData[3]?Math.round(weatherData[3].current.temperature_2m):38;
+  const dt=weatherData[5]?Math.round(weatherData[5].current.temperature_2m):40;
+  const bkl=weatherData[16]?Math.round(weatherData[16].current.temperature_2m):41;
+  const pod=weatherData[18]?Math.round(weatherData[18].current.temperature_2m):39;
+  const houle=houleData[0]?houleData[0].current.wave_height.toFixed(1):'1.2';
+  const em=`${now.getHours()}h${String(now.getMinutes()).padStart(2,'0')}`;
+
+  bulletinsData=[
+    {badge:'normal',bl:'Bulletin quotidien',
+     title:`Bulletin météorologique général — ${dateStr}`,
+     date:`Émission: ${em} UTC · ANACIM Dakar`,
+     body:`Ciel partiellement nuageux sur le Cap-Vert: ${minT}–${maxT}°C. Harmattan NE ${wind} km/h. Houle ${houle}m.`,
+     full:`BULLETIN MÉTÉOROLOGIQUE GÉNÉRAL
+AGENCE NATIONALE DE L'AVIATION CIVILE ET DE LA MÉTÉOROLOGIE
+ANACIM — Direction de la Météorologie Nationale
+Dakar, Sénégal — Émission: ${em} UTC, ${dateStr}
+
+═══════════════════════════════════════════
+SITUATION SYNOPTIQUE GÉNÉRALE
+═══════════════════════════════════════════
+Flux d'harmattan modéré à fort de secteur Nord-Est, 15–${wind} km/h.
+ZCIT au large des côtes sud. Pression: ${Math.round(c.surface_pressure)} hPa.
+
+═══════════════════════════════════════════
+PRÉVISIONS PAR RÉGION
+═══════════════════════════════════════════
+• DAKAR & CAP-VERT: Partiellement nuageux. T° ${minT}–${maxT}°C.
+  Vent NO ${Math.round(c.wind_speed_10m)} km/h. Humidité ${c.relative_humidity_2m}%. UV: ${uv}/11.
+• THIÈS, DIOURBEL, GOSSAS: Dégagé. Chaud et sec. 35–37°C.
+• LOUGA, LINGUÈRE: Très chaud, 37–39°C. Vents de sable.
+• KAOLACK, FATICK, MBOUR: Chaud ${dh}°C. Nuages thermiques.
+• TAMBACOUNDA, GOUDIRY, SARAYA: Chaleur intense ${dt}°C. UV ${uv}/11.
+• MATAM, BAKEL, PODOR, RANÉROU: CANICULE ${bkl}–${pod}°C.
+• ZIGUINCHOR, BIGNONA, SÉDHIOU, KOLDA, VÉLINGARA:
+  Nuageux. Pluie ${rain}%. T° 31–33°C.
+• KÉDOUGOU: Orages locaux possibles. 37°C.
+• RICHARD-TOLL, NIORO, KAFFRINE: Chaud et sec. 36–38°C.
+
+═══════════════════════════════════════════
+MARINE ET CÔTES
+═══════════════════════════════════════════
+Houle: ${houle}m. Direction: NO. Période: 8–12s.
+Courant: 0.5–1.5 nœuds N→S.
+
+VISIBILITÉ: Bonne. Brume sèche au nord.
+PROCHAINE ÉMISSION: Ce soir à 18h00 UTC
+ANACIM — +221 33 869 69 69 — www.anacim.sn`
+    },
+    {badge:maxT>=38?'alerte':'vigilance',bl:'Alerte chaleur',
+     title:'Bulletin spécial chaleur — Régions Est, Nord et Centre',
+     date:`Valide 48h — ${now.toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'})}`,
+     body:`Bakel ${bkl}°C · Podor ${pod}°C · Tambacounda ${dt}°C · Linguère 39°C.`,
+     full:`BULLETIN SPÉCIAL CHALEUR
+AGENCE NATIONALE DE L'AVIATION CIVILE ET DE LA MÉTÉOROLOGIE
+ANACIM — Direction Prévision et Alerte — Dakar, ${dateStr}
+
+${maxT>=40?'🔴 ALERTE ROUGE — CANICULE EXTRÊME':'🟠 ALERTE ORANGE — FORTES CHALEURS'}
+
+TEMPÉRATURES MAXIMALES ATTENDUES:
+• Bakel: ${bkl}°C ⚠️ EXTRÊME    • Podor: ${pod}°C ⚠️ EXTRÊME
+• Matam: 40°C ⚠️ TRÈS ÉLEVÉ   • Ranérou: 40°C ⚠️ TRÈS ÉLEVÉ
+• Tambacounda: ${dt}°C ⚠️       • Linguère: 39°C ⚠️ ÉLEVÉ
+• Kaffrine: 38°C ⚠️ ÉLEVÉ      • Kaolack: ${dh}°C ⚠️ ÉLEVÉ
+
+RECOMMANDATIONS:
+✓ Évitez toute sortie entre 12h et 16h
+✓ Buvez abondamment (au moins 2L/jour)
+✓ Vêtements légers, couvrez la tête
+✓ Protégez enfants, personnes âgées et malades
+✓ Cherchez la fraîcheur (bâtiments climatisés)
+✓ Consultez immédiatement un médecin si malaise
+
+VALIDITÉ: 48 heures. Réévaluation demain 06h00 UTC
+ANACIM — +221 33 869 69 69 — www.anacim.sn`
+    },
+    {badge:'marine',bl:'Bulletin marin',
+     title:'Avis météorologique maritime — Côtes sénégalaises',
+     date:'Cap-Vert · Grande Côte · Petite Côte · Casamance',
+     body:`Houle: ${houle}m · Vent NO ${Math.round(c.wind_speed_10m)} km/h · ${parseFloat(houle)>=2?'⚠️ Navigation déconseillée':'Conditions acceptables'}.`,
+     full:`AVIS MÉTÉOROLOGIQUE MARITIME
+AGENCE NATIONALE DE L'AVIATION CIVILE ET DE LA MÉTÉOROLOGIE
+ANACIM — Service de Météorologie Maritime — Dakar, ${dateStr}
+
+ZONES: Cap-Vert · Grande Côte · Petite Côte (Mbour) · Casamance
+
+CONDITIONS MARINES:
+• Vent: Nord-Ouest, ${Math.round(c.wind_speed_10m)}–${wind} km/h
+• Houle: ${houle}m · Période 8–12s · Direction NO
+• Courant: 0.5–1.5 nœuds, N→S · Température mer: ~26°C
+
+PRÉVISIONS 24H:
+• Nuit: Vent faiblissant, mer se calmant
+• Demain matin: Brises de mer 09h00
+• Demain après-midi: Vent 20–30 km/h, mer ${(parseFloat(houle)-0.2).toFixed(1)}m
+
+AVIS PÊCHEURS:
+${parseFloat(houle)>=2?'⚠️ NAVIGATION DÉCONSEILLÉE pirogues < 10m\nRestez à quai.':'✓ Navigation côtière acceptable. Vigilance.'}
+
+URGENCE MER: +221 33 849 00 00
+ANACIM — www.anacim.sn`
+    },
+    {badge:'normal',bl:'Prévision saisonnière',
+     title:'Hivernage 2025 — Bilan pluviométrique décadaire',
+     date:'Direction Climatologie — ANACIM',
+     body:'Bilan des précipitations et perspectives pour la saison des pluies sur tout le territoire.',
+     full:`POINT SAISONNIER — HIVERNAGE 2025
+AGENCE NATIONALE DE L'AVIATION CIVILE ET DE LA MÉTÉOROLOGIE
+ANACIM — Direction de la Climatologie — Dakar, ${dateStr}
+
+BILAN PLUVIOMÉTRIQUE (vs normale 1981-2010):
+EXCÉDENTS:
+• Ziguinchor: +15% · Bignona: +12%
+• Kolda/Sédhiou/Vélingara: +8% · Tambacounda/Saraya: +12%
+• Matam: +4% · Kédougou: +6%
+
+DÉFICITS:
+• Dakar: -20% · Louga/Linguère/Ranérou: -10%
+• Kaolack/Nioro: -5% · Fatick/Gossas: -3%
+• Podor/Bakel/Richard-Toll: Dans la normale
+
+PERSPECTIVES 2 SEMAINES:
+→ Conditions favorables: Ziguinchor, Kolda, Sédhiou, Tambacounda
+→ Épisodes modérés possibles: Kaolack, Kaffrine
+
+RECOMMANDATIONS:
+• AGRICULTEURS: Mil, sorgho, arachide, riz pluvial
+• GESTIONNAIRES: Surveiller fleuves et marigots
+• COLLECTIVITÉS: Prévention des inondations
+
+Prochaine actualisation: dans 10 jours
+ANACIM — www.anacim.sn`
+    }
+  ];
+
+  const bl=document.getElementById('bulletinList');bl.innerHTML='';
+  bulletinsData.forEach((b,i)=>{
+    bl.innerHTML+=`<div class="bulletin-item" id="bul${i}">
+      <div class="b-main" onclick="toggleBulletin(${i})">
+        <div class="b-hdr"><div class="b-title">${b.title}</div><div class="b-badge ${b.badge}">${b.bl}</div></div>
+        <div class="b-date">${b.date}</div>
+        <div class="b-body">${b.body}</div>
+      </div>
+      <div class="b-actions">
+        <button class="b-expand-btn" onclick="toggleBulletin(${i})">📄 Voir bulletin complet</button>
+        <button class="b-dl-btn" onclick="downloadBulletinPDF(${i})">⬇️ Télécharger PDF</button>
+      </div>
+      <div class="b-expand"><pre style="white-space:pre-wrap;font-family:var(--fb);font-size:11px;color:var(--text2);line-height:1.75">${b.full}</pre></div>
+    </div>`;
+  });
+}
+
+function toggleBulletin(i){
+  document.getElementById('bul'+i).classList.toggle('open');
+  currentBulletinIdx=i;
+  if(voiceSpeaking)stopVoice();
+  document.getElementById('voiceStatus').textContent=`Bulletin ${i+1} sélectionné — Cliquez Lire`;
+}
+
+function downloadBulletinPDF(i){
+  const b=bulletinsData[i];if(!b)return;
+  const now=new Date();
+  const df=`${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}`;
+  const html=`<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8">
+<style>body{font-family:'Courier New',monospace;font-size:11px;line-height:1.6;margin:30px;color:#111}h1{font-size:13px;border-bottom:2px solid #1a6ea8;padding-bottom:6px;color:#1a6ea8;margin-bottom:4px}h2{font-size:11px;color:#555;font-weight:normal;margin-bottom:14px}pre{white-space:pre-wrap;font-family:'Courier New',monospace;font-size:10.5px;line-height:1.7}.footer{margin-top:20px;font-size:9px;color:#888;border-top:1px solid #ddd;padding-top:6px}@media print{body{margin:15px}}</style>
+</head><body>
+<h1>🌤 ANACIM — ${b.title}</h1>
+<h2>${b.date} | SEN Météo Dashboard</h2>
+<pre>${b.full}</pre>
+<div class="footer">Généré le ${now.toLocaleString('fr-FR')} — SEN Météo ANACIM Dashboard — www.anacim.sn</div>
+</body></html>`;
+  const blob=new Blob([html],{type:'text/html;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const w=window.open(url,'_blank');
+  if(w){w.addEventListener('load',()=>{w.print();setTimeout(()=>URL.revokeObjectURL(url),5000);});}
+  else{const a=document.createElement('a');a.href=url;a.download=`ANACIM_Bulletin_${i+1}_${df}.html`;a.click();setTimeout(()=>URL.revokeObjectURL(url),2000);}
+}
+
+// ══════════════════════════════════════════════════════════
+// VOICE WOLOF / FR / EN
+// ══════════════════════════════════════════════════════════
+const WOLOF_TEXTS=[
+`Bismillah. Mangi dem ci tur Yàlla Boroom kaaraange ak jàmm.
+Asalaamaalëkum yëp. ANACIM maa ngi jox biir xam-xam bi ci néeg bi tey ci Sénégal buur.
+
+Ci dëkk bi bu ndaw yi Dakar ak Cap Vert, néeg bi dafa soxor-soxor rekk ci wetinu ak xëyu wetinu. Jant bi dafa tang waaye dëkk bëgël a jaap. Temperatuur bi dëkk ci fan ak juróom benn ak ñaari fukk ak fukk siti degré.
+
+Ci reyjoon yi bëj-gannaar, Saint-Louis, Podor, Matam ak Bakel, jant bi dafa tang lool lool. Ci Bakel ak Tambacounda, temperatuur bi mën a tàkk ci ñaari fukk ak fukk degré. Seeteel sa yaram ak sa mbokk yi.
+
+Ci gej gi ci Dakar, boppeel gi dafa am fan ak juróom senti metr. Yoon wi dëkk ci nopoo ak jooje. Bulletin bu toll bi dina ñëw ci ngoon bi. Jërejëf.`,
+`Asalaamaalëkum! ANACIM maa ngi yëgël ñëpp ci tang bu xam-xam bi ci Sénégal.
+
+Temperatuur yi dañu doy mbetteel lool ci reyjoon yi: Bakel, Podor, Matam, Ranérou, Tambacounda, Linguère, Kaffrine ak Kaolack.
+
+Jukki yi ngir def sa yaram jàmm:
+Bul dem dëkk bu réy ci diggante junni ak fukki waxtu ci ngoon.
+Naan ndox bu bari, rekk jëm ci kaw, ci ñaari liiter ci fan.
+Yokk nguur bu pool, nob sa bopp ci jant bi.
+Doomu-aadama yi ndaw yi ak jëkkër-jëkkër yi, yëgël lëñu amul jant bi mës.
+Soo sante wala soo metti, dem yëgël doktoor bi muusal muusal.
+
+Bulletin bii dafe weex ci ñaari fan. Jërejëf.`,
+`Asalaamaalëkum! ANACIM maa ngi jox avis bu marneel ci gej gi ci Sénégal.
+
+Ci gej gi ci tëjj bi, yoon wi dëkk ci nopoo ak jooje. Boppeel gi ci gej bi dafa am fan ak juróom senti metr. Diggante yëne bi dafa am fukk ak ñaar ci fukk second.
+
+Ngir yëene yi ak buur yi ci gej gi: soo am pirog wala bëkk, mën ngeen dem ci gej gi, waaye seeteel tëng tëng.
+
+Soo am yoon mu jekk, wolée ci poste marneel bi ci Dakar. Jërejëf.`,
+`Asalaamaalëkum! ANACIM maa ngi jox point bi ci saison ndox yi, hivernage ñaari fukk ak juróom ak fukk bi.
+
+Ci Ziguinchor, Bignona, Kolda, Sédhiou ak Tambacounda, ndox yi dañu ci bi yees. Ci Dakar, Louga ak Linguère, ndox yi dañu ci bi des.
+
+Modèle yi bu néeg bi dañu wax ni ndox yi dina ñëwoon ci reyjoon yi: Ziguinchor, Kolda, Tambacounda ak Kédougou, ci ñaari aatu yi di ñëw.
+
+Boroom ngàntekat yi, xool sa pépp ak sa sorgho ak sa mil. Jërejëf. Mangi dem.`
+];
+
+function setVoiceLang(lang,btn){
+  voiceLang=lang;document.querySelectorAll('.vlang-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');
+  if(voiceSpeaking)stopVoice();
+}
+function stopVoice(){
+  window.speechSynthesis.cancel();voiceSpeaking=false;
+  const btn=document.getElementById('voicePlayBtn');
+  btn.classList.remove('playing');btn.innerHTML='🎙️ Lire le bulletin';btn.disabled=false;
+  document.getElementById('voiceWaves').classList.add('hidden');
+  document.getElementById('voiceStatus').textContent='Lecture terminée';
+}
+function toggleVoice(){
+  if(voiceSpeaking){stopVoice();return;}
+  const btn=document.getElementById('voicePlayBtn'),idx=currentBulletinIdx;
+  let text='',lang='fr-FR';
+  if(voiceLang==='fr'){
+    const d=weatherData[0];if(!d){document.getElementById('voiceStatus').textContent='Données N/A';return;}
+    const c=d.current,dl=d.daily;
+    const maxT=Math.round(dl.temperature_2m_max[0]),minT=Math.round(dl.temperature_2m_min[0]),wind=Math.round(dl.wind_speed_10m_max[0]);
+    const houle=houleData[0]?houleData[0].current.wave_height.toFixed(1):'1.2';
+    const uv=Math.round(c.uv_index||0);
+    const dh=weatherData[3]?Math.round(weatherData[3].current.temperature_2m):38;
+    const dt=weatherData[5]?Math.round(weatherData[5].current.temperature_2m):40;
+    const bkl=weatherData[16]?Math.round(weatherData[16].current.temperature_2m):41;
+    const pod=weatherData[18]?Math.round(weatherData[18].current.temperature_2m):39;
+    const FR=[
+      `Bulletin météorologique général de l'ANACIM pour le Sénégal. Ciel partiellement nuageux sur le Cap-Vert, ${minT} à ${maxT} degrés. Harmattan Nord-Est. Chaleur intense: Bakel ${bkl} degrés, Podor ${pod} degrés, Tambacounda ${dt} degrés. UV ${uv} sur onze. Houle de ${houle} mètres. Prochaine émission ce soir.`,
+      `Bulletin spécial chaleur ANACIM. Bakel ${bkl} degrés, Podor ${pod} degrés, Matam quarante degrés, Tambacounda ${dt} degrés, Linguère trente-neuf degrés, Kaolack ${dh} degrés. Évitez les sorties entre midi et seize heures. Buvez abondamment. Validité quarante-huit heures.`,
+      `Avis maritime ANACIM. Vent Nord-Ouest ${Math.round(c.wind_speed_10m)} kilomètres heure. Houle ${houle} mètres. ${parseFloat(houle)>=2?'Navigation déconseillée aux pirogues.':'Conditions acceptables. Restez vigilants.'}`,
+      `Point hivernage deux mille vingt-cinq. Excédents pluviométriques à Ziguinchor et Tambacounda. Déficit à Dakar. Conditions favorables aux précipitations sur le sud pour les deux prochaines semaines.`
+    ];
+    text=FR[idx]||FR[0];lang='fr-FR';
+  } else if(voiceLang==='en'){
+    const EN=[
+      `ANACIM general weather forecast for Senegal. Partly cloudy over Dakar. Extreme heat in eastern and northern regions. Next bulletin this evening.`,
+      `ANACIM special heat alert. Exceptionally high temperatures forecast. Avoid outdoor activities between noon and four PM. Drink plenty of water. Valid forty-eight hours.`,
+      `ANACIM maritime advisory. Northwest wind. Coastal fishing conditions acceptable but remain vigilant.`,
+      `ANACIM Hivernage 2025 update. Rainfall surpluses in Ziguinchor and Tambacounda. Deficits in Dakar. Favorable rainfall in the south over the next two weeks.`
+    ];
+    text=EN[idx]||EN[0];lang='en-GB';
+  } else {
+    text=WOLOF_TEXTS[idx]||WOLOF_TEXTS[0];lang='fr-SN';
+  }
+  if(!('speechSynthesis' in window)){document.getElementById('voiceStatus').textContent='⚠️ Non supporté';return;}
+  window.speechSynthesis.cancel();
+  setTimeout(()=>{
+    const utter=new SpeechSynthesisUtterance(text);
+    utter.lang=lang;
+    if(voiceLang==='wo'){utter.pitch=1.3;utter.rate=0.8;}
+    else if(voiceLang==='fr'){utter.pitch=1.08;utter.rate=0.88;}
+    else{utter.pitch=1.0;utter.rate=0.9;}
+    const voices=window.speechSynthesis.getVoices();
+    let match=null;
+    if(voiceLang!=='en'){
+      match=voices.find(v=>v.lang.startsWith('fr')&&(v.name.includes('Amélie')||v.name.includes('Céline')||v.name.includes('Marie')||v.name.includes('Léa')||v.name.toLowerCase().includes('female')));
+      if(!match)match=voices.find(v=>v.lang.startsWith('fr'));
+    } else {match=voices.find(v=>v.lang.startsWith('en'));}
+    if(match)utter.voice=match;
+    utter.onstart=()=>{voiceSpeaking=true;btn.classList.add('playing');btn.innerHTML='⏹ Arrêter';document.getElementById('voiceWaves').classList.remove('hidden');document.getElementById('voiceStatus').textContent={fr:'🇫🇷 Lecture...',en:'🇬🇧 Reading...',wo:'🇸🇳 Wolof...'}[voiceLang];};
+    utter.onend=()=>stopVoice();
+    utter.onerror=()=>{stopVoice();document.getElementById('voiceStatus').textContent='⚠️ Erreur vocale';};
+    window.speechSynthesis.speak(utter);
+  },100);
+}
+
+// ══════════════════════════════════════════════════════════
+// PRÉVISIONS TAB
+// ══════════════════════════════════════════════════════════
+function renderPrevCityBtns(){
+  const cont=document.getElementById('prevCityBtns');cont.innerHTML='';
+  CITIES.forEach((c,i)=>{cont.innerHTML+=`<button class="histo-btn${i===0?' active':''}" onclick="showPrevCity(${i},this)">${c.n}</button>`;});
+  showPrevCity(0,cont.children[0]);
+}
+function showPrevCity(idx,btn){
+  document.querySelectorAll('#prevCityBtns .histo-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  const d=weatherData[idx],city=CITIES[idx];
+  const cont=document.getElementById('prevDetails');
+  if(!d){cont.innerHTML='<div style="color:var(--text3);font-size:12px;padding:10px">Données non disponibles</div>';return;}
+  let html=`<div class="card"><div class="sec-title">Prévisions 14 jours — ${city.n}</div>
+  <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:11.5px">
+  <tr style="border-bottom:.5px solid var(--border)">
+    <th style="padding:7px 5px;color:var(--text3);font-weight:600;text-align:left">Jour</th>
+    <th style="padding:7px 5px;color:var(--text3);font-weight:600;text-align:center">Météo</th>
+    <th style="padding:7px 5px;color:var(--text3);font-weight:600;text-align:center">Max</th>
+    <th style="padding:7px 5px;color:var(--text3);font-weight:600;text-align:center">Min</th>
+    <th style="padding:7px 5px;color:var(--text3);font-weight:600;text-align:center">Pluie</th>
+    <th style="padding:7px 5px;color:var(--text3);font-weight:600;text-align:center">Vent</th>
+    <th style="padding:7px 5px;color:var(--text3);font-weight:600;text-align:center">UV</th>
+  </tr>`;
+  for(let i=0;i<d.daily.time.length;i++){
+    const dt=new Date(d.daily.time[i]);
+    const dow=i===0?'Aujourd\'hui':dt.toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short'});
+    const rain=d.daily.precipitation_probability_max[i]||0;
+    const uv=Math.round(d.daily.uv_index_max[i]||0);
+    const uvC=uv>=8?'var(--red)':uv>=5?'var(--orange)':'var(--yellow)';
+    const rainC=rain>=70?'var(--red)':rain>=40?'var(--orange)':'var(--a3)';
+    html+=`<tr style="border-bottom:.5px solid var(--border);${i%2===0?'background:rgba(255,255,255,.015)':''}">
+      <td style="padding:7px 5px;color:${i===0?'var(--accent)':'var(--text)'};font-weight:${i===0?'600':'400'}">${dow}</td>
+      <td style="padding:7px 5px;text-align:center">${wI(d.daily.weather_code[i])}</td>
+      <td style="padding:7px 5px;text-align:center;font-weight:700;color:var(--orange)">${dT(d.daily.temperature_2m_max[i])}°</td>
+      <td style="padding:7px 5px;text-align:center;color:var(--a3)">${dT(d.daily.temperature_2m_min[i])}°</td>
+      <td style="padding:7px 5px;text-align:center;color:${rainC}">${rain}%</td>
+      <td style="padding:7px 5px;text-align:center">${Math.round(d.daily.wind_speed_10m_max[i])} km/h</td>
+      <td style="padding:7px 5px;text-align:center;color:${uvC}">${uv}</td>
+    </tr>`;
+  }
+  cont.innerHTML=html+`</table></div></div>`;
+}
+
+// ══════════════════════════════════════════════════════════
+// HISTORIQUE 60J
+// ══════════════════════════════════════════════════════════
+function renderHistoCityBtns(){
+  const cont=document.getElementById('histoCityBtns');cont.innerHTML='';
+  CITIES.forEach((c,i)=>{cont.innerHTML+=`<button class="histo-btn${i===0?' active':''}" onclick="showHistoCity(${i},this)">${c.n}</button>`;});
+}
+function showHistoCity(idx,btn){
+  document.querySelectorAll('#histoCityBtns .histo-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');histoCity=idx;renderHistoCharts();
+}
+function renderHistoCharts(){
+  const d=histoData[histoCity];if(!d||!d.daily)return;
+  const labels=d.daily.time.map(t=>{const dt=new Date(t);return `${dt.getDate()}/${dt.getMonth()+1}`});
+  const maxT=d.daily.temperature_2m_max,minT=d.daily.temperature_2m_min,precip=d.daily.precipitation_sum||[];
+  const avgMax=Math.round(maxT.reduce((a,b)=>a+b,0)/maxT.length);
+  const avgMin=Math.round(minT.reduce((a,b)=>a+b,0)/minT.length);
+  const absMax=Math.round(Math.max(...maxT));
+  const totalPrecip=Math.round(precip.reduce((a,b)=>a+(b||0),0)*10)/10;
+  document.getElementById('histoStats').innerHTML=`
+    <div class="hs-card"><div class="hsl">Moy. Max</div><div class="hsv" style="color:var(--orange)">${avgMax}°C</div></div>
+    <div class="hs-card"><div class="hsl">Moy. Min</div><div class="hsv" style="color:var(--a3)">${avgMin}°C</div></div>
+    <div class="hs-card"><div class="hsl">Record Max</div><div class="hsv" style="color:var(--red)">${absMax}°C</div></div>
+    <div class="hs-card"><div class="hsl">Précip. Total</div><div class="hsv" style="color:var(--green)">${totalPrecip}mm</div></div>`;
+  const cfg={responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},plugins:{legend:{display:false}},scales:{x:{grid:{color:'rgba(255,255,255,.03)'},ticks:{color:'#3d5a78',font:{size:9},maxTicksLimit:20,maxRotation:45}},y:{grid:{color:'rgba(255,255,255,.03)'},ticks:{color:'#3d5a78',font:{size:9}}}}};
+  if(histoTempChart)histoTempChart.destroy();
+  histoTempChart=new Chart(document.getElementById('histoTempChart'),{type:'line',data:{labels,datasets:[
+    {label:'T°Max',data:maxT.map(v=>Math.round(v)),borderColor:'#fb923c',backgroundColor:'rgba(251,146,60,.07)',tension:.3,fill:true,pointRadius:0,borderWidth:2},
+    {label:'T°Min',data:minT.map(v=>Math.round(v)),borderColor:'#38bdf8',backgroundColor:'rgba(56,189,248,.05)',tension:.3,fill:true,pointRadius:0,borderWidth:2,borderDash:[5,3]}
+  ]},options:{...cfg,scales:{...cfg.scales,y:{...cfg.scales.y,ticks:{...cfg.scales.y.ticks,callback:v=>v+'°C'}}}}});
+  if(histoRainChart)histoRainChart.destroy();
+  histoRainChart=new Chart(document.getElementById('histoRainChart'),{type:'bar',data:{labels,datasets:[{label:'mm',data:precip.map(v=>v?parseFloat(v.toFixed(1)):0),backgroundColor:'rgba(56,189,248,.5)',borderColor:'#38bdf8',borderWidth:1,borderRadius:2}]},options:{...cfg,scales:{...cfg.scales,y:{...cfg.scales.y,ticks:{...cfg.scales.y.ticks,callback:v=>v+'mm'},min:0}}}});
+  document.getElementById('histoUpdateTime').textContent=`ERA5 · Open-Meteo Archive · ${CITIES[histoCity].n} · 60 jours`;
+}
+function renderHistoHoule(mh){
+  if(!mh||!mh.daily)return;
+  const labels=mh.daily.time.map(t=>{const dt=new Date(t);return `${dt.getDate()}/${dt.getMonth()+1}`});
+  const wm=mh.daily.wave_height_max;if(!wm||!wm.length)return;
+  if(histoHouleChart)histoHouleChart.destroy();
+  histoHouleChart=new Chart(document.getElementById('histoHouleChart'),{type:'bar',data:{labels,datasets:[{label:'m',data:wm.map(v=>v?parseFloat(v.toFixed(2)):0),
+    backgroundColor:wm.map(v=>v>=2.5?'rgba(248,113,113,.7)':v>=1.5?'rgba(251,146,60,.7)':'rgba(56,189,248,.5)'),
+    borderColor:wm.map(v=>v>=2.5?'#f87171':v>=1.5?'#fb923c':'#38bdf8'),borderWidth:1,borderRadius:2}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:'rgba(255,255,255,.03)'},ticks:{color:'#3d5a78',font:{size:9},maxTicksLimit:20,maxRotation:45}},y:{grid:{color:'rgba(255,255,255,.03)'},ticks:{color:'#3d5a78',callback:v=>v+'m'},min:0}}}});
+}
+
+// ══════════════════════════════════════════════════════════
+// CANVAS ANIMATED HERO BACKGROUND
+// ══════════════════════════════════════════════════════════
+function initWeatherCanvas(){
+  const canvas=document.getElementById('weatherMapCanvas');if(!canvas)return;
+  const ctx=canvas.getContext('2d');
+  let W,H,particles=[],isobars=[],cells=[];
+  const OUTLINE=[[.22,.08],[.35,.04],[.54,.03],[.72,.07],[.85,.18],[.92,.33],[.94,.50],[.90,.65],[.80,.75],[.70,.83],[.57,.89],[.46,.93],[.36,.90],[.24,.84],[.13,.74],[.07,.62],[.06,.48],[.09,.34],[.14,.22]];
+  const PTS=[{x:.14,y:.42,t:28},{x:.25,y:.08,t:30},{x:.20,y:.38,t:32},{x:.32,y:.54,t:36},{x:.22,y:.85,t:31},{x:.60,y:.68,t:40},{x:.64,y:.18,t:38},{x:.38,y:.82,t:33},{x:.75,y:.80,t:37},{x:.30,y:.22,t:33},{x:.17,y:.58,t:30},{x:.42,y:.48,t:37}];
+  function tc(t,a=1){const n=Math.min(1,Math.max(0,(t-24)/18));return `rgba(${Math.round(20+n*230)},${Math.round(155-n*125)},${Math.round(248-n*210)},${a})`}
+  function resize(){const h=canvas.parentElement;W=canvas.width=h.offsetWidth||window.innerWidth;H=canvas.height=h.offsetHeight||400;}
+  function initP(){particles=[];for(let i=0;i<48;i++)particles.push({x:Math.random()*W,y:Math.random()*H,vx:(Math.random()-.3)*.45,vy:(Math.random()-.1)*.22,life:Math.random(),maxLife:1,size:Math.random()*1.4+.3,alpha:Math.random()*.3+.07})}
+  function initI(){isobars=[];for(let i=0;i<5;i++){const pts=[],cx=Math.random()*W,cy=Math.random()*H,r=70+Math.random()*120;for(let a=0;a<Math.PI*2;a+=.28)pts.push({x:cx+Math.cos(a)*r*(.8+Math.random()*.4),y:cy+Math.sin(a)*r*(.8+Math.random()*.4)});isobars.push({pts,alpha:.04+Math.random()*.08,t:i*10})}}
+  function initC(){cells=[];PTS.forEach(p=>cells.push({x:p.x*W,y:p.y*H,t:p.t,r:100+Math.random()*80}))}
+  function drawG(){cells.forEach(c=>{const g=ctx.createRadialGradient(c.x,c.y,0,c.x,c.y,c.r);g.addColorStop(0,tc(c.t,.14));g.addColorStop(1,tc(c.t,0));ctx.fillStyle=g;ctx.fillRect(0,0,W,H)})}
+  function drawO(){ctx.save();ctx.beginPath();ctx.moveTo(OUTLINE[0][0]*W,OUTLINE[0][1]*H);OUTLINE.forEach(p=>ctx.lineTo(p[0]*W,p[1]*H));ctx.closePath();ctx.strokeStyle='rgba(56,189,248,.18)';ctx.lineWidth=1.5;ctx.setLineDash([4,4]);ctx.stroke();ctx.setLineDash([]);ctx.restore()}
+  function drawI(){isobars.forEach(iso=>{ctx.save();ctx.beginPath();ctx.moveTo(iso.pts[0].x,iso.pts[0].y);iso.pts.forEach(p=>ctx.lineTo(p.x,p.y));ctx.closePath();ctx.strokeStyle=`rgba(56,189,248,${iso.alpha})`;ctx.lineWidth=1;ctx.stroke();ctx.restore()})}
+  function drawP(dt){particles.forEach(p=>{p.x+=p.vx*dt*60;p.y+=p.vy*dt*60;p.life+=dt*.13;if(p.life>p.maxLife||p.x<0||p.x>W||p.y<0||p.y>H){p.x=Math.random()*W;p.y=Math.random()*H;p.life=0;}const fade=Math.min(p.life,p.maxLife-p.life)*4;ctx.save();ctx.globalAlpha=p.alpha*Math.min(1,fade);ctx.fillStyle='rgba(125,211,252,.8)';ctx.beginPath();ctx.arc(p.x,p.y,p.size,0,Math.PI*2);ctx.fill();ctx.strokeStyle='rgba(56,189,248,.2)';ctx.lineWidth=.7;ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(p.x-p.vx*14,p.y-p.vy*14);ctx.stroke();ctx.restore()})}
+  function drawGr(){ctx.save();ctx.strokeStyle='rgba(56,189,248,.03)';ctx.lineWidth=.5;for(let x=0;x<W;x+=64){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke()}for(let y=0;y<H;y+=64){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke()}ctx.restore()}
+  let last=0;
+  function anim(ts){const dt=Math.min(.05,(ts-last)/1000);last=ts;ctx.clearRect(0,0,W,H);ctx.fillStyle='#07090f';ctx.fillRect(0,0,W,H);drawGr();drawG();drawI();drawP(dt);drawO();isobars.forEach(iso=>iso.pts.forEach(p=>{p.x+=Math.sin(ts*.0001+iso.t)*.07;p.y+=Math.cos(ts*.00011+iso.t)*.055}));requestAnimationFrame(anim)}
+  resize();initP();initI();initC();requestAnimationFrame(ts=>{last=ts;anim(ts)});
+  window.addEventListener('resize',()=>{resize();initC()});
+}
+
+// ══════════════════════════════════════════════════════════
+// ORCHESTRATION
+// ══════════════════════════════════════════════════════════
+function renderAll(){
+  renderMain();renderCityList();renderRegions();renderHoule();
+  renderBulletins();renderPrevCityBtns();renderHistoCityBtns();
+  renderHistoCharts();renderLeafletMarkers();
+}
+async function reloadAll(){
+  document.getElementById('loadingOverlay').style.display='flex';
+  await loadAll();
+  document.getElementById('loadingOverlay').style.display='none';
+}
+async function loadAll(){
+  try{
+    showLoad('Chargement météo — toutes les localités...');
+    await Promise.all(CITIES.map((c,i)=>fetchCity(c).then(d=>{weatherData[i]=d}).catch(()=>{})));
+    showLoad('Chargement données marines...');
+    await Promise.all(COASTAL.map((c,i)=>fetchHoule(c).then(d=>{if(d)houleData[i]=d}).catch(()=>{})));
+    showLoad('Chargement historique 60j — toutes localités...');
+    await Promise.all(CITIES.map((c,i)=>fetchHisto(c).then(d=>{histoData[i]=d}).catch(()=>{})));
+    showLoad('Chargement historique houle...');
+    const mh=await fetchMarineHisto().catch(()=>null);
+    renderAll();
+    if(mh)renderHistoHoule(mh);
+  }catch(e){
+    console.error(e);
+    document.getElementById('alertsContainer').innerHTML=`<div class="alert-strip danger"><div>⚠️</div><div><strong>Erreur réseau</strong> — Vérifiez votre connexion.</div></div>`;
+  }
+}
+
+window.addEventListener('load',async()=>{
+  initWeatherCanvas();
+  initLeafletMap();
+  initVideo();
+  await loadAll();
+  document.getElementById('loadingOverlay').style.display='none';
+  // Fix map size after layout
+  setTimeout(()=>{if(leafletMap)leafletMap.invalidateSize();},300);
+  setInterval(()=>loadAll(),600000);
+  if('speechSynthesis' in window){
+    window.speechSynthesis.getVoices();
+    window.speechSynthesis.onvoiceschanged=()=>window.speechSynthesis.getVoices();
+  }
 });
-
-}
-
-/* ================= UI ================= */
-function updatePanel(name,d,f){
-
-document.getElementById("panel").innerHTML=`
-📍 <b>${name}</b><br><br>
-
-🌡 Temp: ${d.temp.toFixed(1)}°C<br>
-🌪 Vent: ${d.wind.toFixed(1)} km/h<br>
-🌧 Pluie: ${d.rain.toFixed(1)} mm<br><br>
-
-📈 Prévisions 72H
-`;
-
-drawChart(f);
-}
-
-/* ================= MARKERS ================= */
-regions.forEach(r=>{
-
-let marker=L.circleMarker([r[1],r[2]],{
-radius:14,
-color:"#00e5ff",
-fillOpacity:0.8
-}).addTo(map);
-
-marker.on("click",async()=>{
-
-let cached=cacheGet(r[0]);
-let data;
-
-if(cached){
-data=cached.v;
-}else{
-data=await openMeteo(r[1],r[2]);
-cacheSet(r[0],data);
-}
-
-let forecast=advancedForecast({...data});
-
-updatePanel(r[0],data,forecast);
-
-marker.bindPopup(`
-<b>${r[0]}</b><br>
-🌡 ${data.temp.toFixed(1)}°C<br>
-🌪 ${data.wind.toFixed(1)} km/h<br>
-🌧 ${data.rain.toFixed(1)} mm
-`).openPopup();
-
-});
-
-});
-
 </script>
-
 </body>
 </html>
