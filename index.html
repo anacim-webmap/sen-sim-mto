@@ -1573,6 +1573,8 @@ function renderAll(){
   renderMain();renderCityList();renderRegions();renderHoule();
   renderBulletins();renderPrevCityBtns();renderHistoCityBtns();
   renderHistoCharts();renderLeafletMarkers();
+  // Analyse et alertes à chaque refresh
+  analyzeAndAlert();
 }
 async function reloadAll(){
   document.getElementById('loadingOverlay').style.display='flex';
@@ -1597,10 +1599,424 @@ async function loadAll(){
   }
 }
 
+// ══════════════════════════════════════════════════════════
+// SYSTÈME D'ALERTES MÉTÉO AUTOMATIQUES
+// Seuils : températures, pluies, houle, vents, vagues chaleur/froid
+// ══════════════════════════════════════════════════════════
+
+// Seuils d'alerte
+const ALERT_THRESHOLDS={
+  tempChaleur:38,      // °C — forte chaleur
+  tempCanicule:42,     // °C — canicule extrême
+  tempFroid:16,        // °C — vague de froid
+  pluieForte:70,       // % probabilité + mm
+  pluieMm:20,          // mm/jour — pluie forte
+  vent:35,             // km/h — fort vent
+  ventTempete:60,      // km/h — tempête
+  houle:2.0,           // m — forte houle
+  houleTempete:3.5,    // m — houle dangereuse
+  vagueChaleur:3,      // jours consécutifs > tempChaleur
+  vagueFroid:3,        // jours consécutifs < tempFroid
+};
+
+// Stockage alertes actives et historique notifications
+let alertesActives=[];
+let notifCooldown={};  // évite répétitions
+
+// Jours de la semaine en français
+const JOURS=['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
+const MOIS_COURT=['Jan','Fév','Mar','Avr','Mai','Juin','Juil','Août','Sep','Oct','Nov','Déc'];
+
+function formatDateAlert(isoStr){
+  const d=new Date(isoStr);
+  return `${JOURS[d.getDay()]} ${d.getDate()} ${MOIS_COURT[d.getMonth()]}`;
+}
+
+// ── Analyse complète toutes les données météo ──
+function analyzeAndAlert(){
+  alertesActives=[];
+
+  // 1. Analyse météo par localité
+  CITIES.forEach((city,i)=>{
+    const d=weatherData[i];
+    if(!d||!d.daily) return;
+    const dl=d.daily;
+    const c=d.current;
+
+    // ─ Températures extrêmes ─
+    dl.temperature_2m_max.forEach((tMax,j)=>{
+      if(j>6) return; // 7 jours max
+      const date=dl.time[j];
+      const tMin=dl.temperature_2m_min[j];
+
+      // Canicule
+      if(tMax>=ALERT_THRESHOLDS.tempCanicule){
+        addAlerte('canicule',city.n,
+          `🔴 CANICULE EXTRÊME — ${Math.round(tMax)}°C`,
+          `Max ${Math.round(tMax)}°C · Min ${Math.round(tMin)}°C`,
+          formatDateAlert(date),'#dc2626');
+      } else if(tMax>=ALERT_THRESHOLDS.tempChaleur){
+        addAlerte('chaleur',city.n,
+          `🟠 Forte chaleur — ${Math.round(tMax)}°C`,
+          `Max ${Math.round(tMax)}°C · Min ${Math.round(tMin)}°C`,
+          formatDateAlert(date),'#ea580c');
+      }
+      // Froid
+      if(tMax<=ALERT_THRESHOLDS.tempFroid){
+        addAlerte('froid',city.n,
+          `🔵 Vague de froid — ${Math.round(tMax)}°C max`,
+          `Max ${Math.round(tMax)}°C · Min ${Math.round(tMin)}°C`,
+          formatDateAlert(date),'#0284c7');
+      }
+    });
+
+    // ─ Vague de chaleur (≥3 jours consécutifs > seuil) ─
+    let streak=0,streakStart=null;
+    dl.temperature_2m_max.slice(0,7).forEach((t,j)=>{
+      if(t>=ALERT_THRESHOLDS.tempChaleur){
+        if(!streakStart) streakStart=dl.time[j];
+        streak++;
+        if(streak>=ALERT_THRESHOLDS.vagueChaleur){
+          addAlerte('vague-chaleur',city.n,
+            `🌡️ Vague de chaleur — ${streak} jours consécutifs`,
+            `Températures ≥ ${ALERT_THRESHOLDS.tempChaleur}°C sur ${streak} jours`,
+            `À partir du ${formatDateAlert(streakStart)}`,'#b45309');
+        }
+      } else {streak=0;streakStart=null;}
+    });
+
+    // ─ Vague de froid (≥3 jours consécutifs < seuil) ─
+    let coldStreak=0,coldStart=null;
+    dl.temperature_2m_max.slice(0,7).forEach((t,j)=>{
+      if(t<=ALERT_THRESHOLDS.tempFroid){
+        if(!coldStart) coldStart=dl.time[j];
+        coldStreak++;
+        if(coldStreak>=ALERT_THRESHOLDS.vagueFroid){
+          addAlerte('vague-froid',city.n,
+            `❄️ Vague de froid — ${coldStreak} jours consécutifs`,
+            `Températures ≤ ${ALERT_THRESHOLDS.tempFroid}°C sur ${coldStreak} jours`,
+            `À partir du ${formatDateAlert(coldStart)}`,'#1d4ed8');
+        }
+      } else {coldStreak=0;coldStart=null;}
+    });
+
+    // ─ Fortes pluies ─
+    dl.precipitation_sum&&dl.precipitation_sum.forEach((mm,j)=>{
+      if(j>6) return;
+      const prob=dl.precipitation_probability_max[j]||0;
+      const date=dl.time[j];
+      if(mm>=ALERT_THRESHOLDS.pluieMm||prob>=ALERT_THRESHOLDS.pluieForte){
+        addAlerte('pluie',city.n,
+          `🌧️ Fortes pluies — ${Math.round(mm)} mm`,
+          `${Math.round(mm)} mm prévus · Probabilité ${prob}%`,
+          formatDateAlert(date),'#0284c7');
+      }
+    });
+
+    // ─ Forts vents ─
+    dl.wind_speed_10m_max&&dl.wind_speed_10m_max.forEach((v,j)=>{
+      if(j>6) return;
+      const date=dl.time[j];
+      if(v>=ALERT_THRESHOLDS.ventTempete){
+        addAlerte('tempete',city.n,
+          `🌪️ Tempête — Rafales ${Math.round(v)} km/h`,
+          `Vents jusqu'à ${Math.round(v)} km/h`,
+          formatDateAlert(date),'#7c3aed');
+      } else if(v>=ALERT_THRESHOLDS.vent){
+        addAlerte('vent',city.n,
+          `💨 Fort vent — ${Math.round(v)} km/h`,
+          `Rafales jusqu'à ${Math.round(v)} km/h`,
+          formatDateAlert(date),'#475569');
+      }
+    });
+  });
+
+  // 2. Analyse houle marine
+  COASTAL.forEach((coast,i)=>{
+    const d=houleData[i];
+    if(!d) return;
+    // Houle actuelle
+    if(d.current){
+      const wh=d.current.wave_height||0;
+      if(wh>=ALERT_THRESHOLDS.houleTempete){
+        addAlerte('houle-danger',coast.n,
+          `⛵ HOULE DANGEREUSE — ${wh.toFixed(1)} m`,
+          `Navigation interdite. Vagues ${wh.toFixed(1)} m`,
+          'Actuellement','#dc2626');
+      } else if(wh>=ALERT_THRESHOLDS.houle){
+        addAlerte('houle',coast.n,
+          `🌊 Forte houle — ${wh.toFixed(1)} m`,
+          `Mer agitée. Vagues ${wh.toFixed(1)} m`,
+          'Actuellement','#0284c7');
+      }
+    }
+    // Houle prévisions 7j
+    if(d.daily&&d.daily.wave_height_max){
+      d.daily.wave_height_max.slice(0,5).forEach((wh,j)=>{
+        if(!wh) return;
+        const date=d.daily.time[j];
+        if(wh>=ALERT_THRESHOLDS.houleTempete){
+          addAlerte('houle-danger-prev',coast.n,
+            `⛵ HOULE DANGEREUSE PRÉVUE — ${wh.toFixed(1)} m`,
+            `Navigation déconseillée. Vagues ${wh.toFixed(1)} m`,
+            formatDateAlert(date),'#dc2626');
+        } else if(wh>=ALERT_THRESHOLDS.houle){
+          addAlerte('houle-prev',coast.n,
+            `🌊 Forte houle prévue — ${wh.toFixed(1)} m`,
+            `Mer agitée prévue. Vagues ${wh.toFixed(1)} m`,
+            formatDateAlert(date),'#0284c7');
+        }
+      });
+    }
+  });
+
+  // 3. Rendu du panneau d'alertes + notifications push
+  renderAlertsPanel();
+  sendPushNotifications();
+}
+
+// ── Ajoute une alerte en dédupliquant (1 alerte par type+ville+date) ──
+function addAlerte(type, ville, titre, detail, periode, couleur){
+  const key=`${type}-${ville}-${periode}`;
+  if(alertesActives.find(a=>a.key===key)) return;
+  alertesActives.push({key,type,ville,titre,detail,periode,couleur});
+}
+
+// ── Affiche le panneau d'alertes dans la nav et dans l'accueil ──
+function renderAlertsPanel(){
+  // Badge compteur dans la nav
+  let badge=document.getElementById('alertBadge');
+  if(!badge){
+    badge=document.createElement('div');
+    badge.id='alertBadge';
+    badge.style.cssText='position:absolute;top:-3px;right:-3px;background:#dc2626;color:#fff;font-size:8px;font-weight:700;padding:1px 4px;border-radius:8px;min-width:14px;text-align:center;display:none;font-family:var(--fh)';
+    const bell=document.getElementById('alertBellBtn');
+    if(bell) bell.style.position='relative';
+  }
+
+  // Panneau alertes dans #alertsContainer
+  const cont=document.getElementById('alertsContainer');
+  // Garde les alertes météo existantes (temp, vent, pluie du header)
+  // Ajoute le panneau complet
+  let panelHtml='';
+
+  if(alertesActives.length===0){
+    // Pas d'alerte
+    badge.style.display='none';
+    return;
+  }
+
+  badge.style.display='block';
+  badge.textContent=alertesActives.length;
+
+  // Grouper par catégorie principale
+  const grps={canicule:[],chaleur:[],froid:[],pluie:[],vent:[],houle:[],autre:[]};
+  alertesActives.forEach(a=>{
+    if(a.type.includes('canicule')||a.type.includes('vague-chaleur')) grps.canicule.push(a);
+    else if(a.type.includes('chaleur')) grps.chaleur.push(a);
+    else if(a.type.includes('froid')||a.type.includes('vague-froid')) grps.froid.push(a);
+    else if(a.type.includes('pluie')) grps.pluie.push(a);
+    else if(a.type.includes('vent')||a.type.includes('tempete')) grps.vent.push(a);
+    else if(a.type.includes('houle')) grps.houle.push(a);
+    else grps.autre.push(a);
+  });
+
+  // Bandeau récapitulatif en haut
+  const critical=alertesActives.filter(a=>a.type.includes('canicule')||a.type.includes('houle-danger')||a.type.includes('tempete'));
+  if(critical.length>0){
+    panelHtml+=`<div style="display:flex;align-items:center;gap:10px;padding:10px 18px;background:rgba(220,38,38,.1);border-left:3px solid #dc2626;font-size:12px">
+      <span style="font-size:16px">🚨</span>
+      <div><strong style="color:#dc2626">${critical.length} alerte(s) critique(s)</strong> — ${critical.map(a=>`${a.titre.split('—')[0].trim()} (${a.ville})`).slice(0,3).join(' · ')}</div>
+    </div>`;
+  }
+
+  // Section détaillée cliquable
+  panelHtml+=`<div id="alertPanelToggle" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;padding:8px 18px;background:rgba(14,165,233,.06);border-bottom:.5px solid rgba(14,165,233,.15)" onclick="toggleAlertPanel()">
+    <span style="font-size:11px;font-weight:600;color:var(--accent)">📋 ${alertesActives.length} alerte(s) météo active(s) — Cliquer pour voir le détail</span>
+    <span id="alertPanelArrow" style="color:var(--accent);font-size:12px;transition:transform .2s">▼</span>
+  </div>
+  <div id="alertPanelBody" style="display:none;padding:12px 18px;background:var(--card2);border-bottom:.5px solid var(--border)">`;
+
+  const catLabels={
+    canicule:{icon:'🌡️',label:'Canicule / Vague de chaleur'},
+    chaleur:{icon:'🔥',label:'Forte chaleur'},
+    froid:{icon:'❄️',label:'Vague de froid'},
+    pluie:{icon:'🌧️',label:'Fortes pluies'},
+    vent:{icon:'💨',label:'Forts vents / Tempête'},
+    houle:{icon:'🌊',label:'Forte houle marine'},
+    autre:{icon:'⚠️',label:'Autres alertes'},
+  };
+
+  Object.entries(grps).forEach(([cat,items])=>{
+    if(!items.length) return;
+    const {icon,label}=catLabels[cat];
+
+    // Regrouper par localité
+    const byVille={};
+    items.forEach(a=>{
+      if(!byVille[a.ville]) byVille[a.ville]=[];
+      byVille[a.ville].push(a);
+    });
+
+    panelHtml+=`<div style="margin-bottom:12px">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text3);margin-bottom:6px">${icon} ${label}</div>
+      <div style="display:flex;flex-direction:column;gap:4px">`;
+
+    Object.entries(byVille).forEach(([ville,as])=>{
+      // Toutes les périodes pour cette ville
+      const periodes=[...new Set(as.map(a=>a.periode))].join(' · ');
+      const worst=as[0];
+      panelHtml+=`<div style="display:flex;align-items:flex-start;gap:10px;padding:8px 10px;background:var(--card);border-radius:8px;border-left:3px solid ${worst.couleur}">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:12px;font-weight:600;color:var(--text)">${ville}</div>
+          <div style="font-size:11px;color:var(--text2);margin-top:2px">${worst.detail}</div>
+          <div style="font-size:10px;color:var(--text3);margin-top:3px;font-family:var(--fm)">📅 ${periodes}</div>
+        </div>
+        <div style="font-size:10px;font-weight:700;color:${worst.couleur};white-space:nowrap;background:${worst.couleur}18;padding:2px 7px;border-radius:4px">${as.length > 1 ? as.length+' jours' : worst.periode}</div>
+      </div>`;
+    });
+
+    panelHtml+=`</div></div>`;
+  });
+
+  panelHtml+=`<div style="font-size:9.5px;color:var(--text3);font-family:var(--fm);border-top:.5px solid var(--border);padding-top:8px;margin-top:4px">
+    Données Open-Meteo · Seuils ANACIM · Mis à jour automatiquement toutes les 10 min
+  </div></div>`;
+
+  cont.innerHTML=panelHtml;
+}
+
+function toggleAlertPanel(){
+  const body=document.getElementById('alertPanelBody');
+  const arrow=document.getElementById('alertPanelArrow');
+  if(!body) return;
+  const open=body.style.display==='block';
+  body.style.display=open?'none':'block';
+  if(arrow) arrow.style.transform=open?'rotate(0deg)':'rotate(180deg)';
+}
+
+// ── Notifications Push via Web Notifications API ──
+async function requestNotifPermission(){
+  if(!('Notification' in window)) return false;
+  if(Notification.permission==='granted') return true;
+  if(Notification.permission==='denied') return false;
+  const p=await Notification.requestPermission();
+  return p==='granted';
+}
+
+async function sendPushNotifications(){
+  if(!(await requestNotifPermission())) return;
+
+  const now=Date.now();
+  const COOLDOWN=3600000; // 1h entre deux notifs du même type
+
+  // Envoyer une notif par catégorie (grouper pour ne pas spammer)
+  const cats={};
+  alertesActives.forEach(a=>{
+    const cat=a.type.replace(/-\w+/,'').split('-')[0];
+    if(!cats[cat]) cats[cat]=[];
+    cats[cat].push(a);
+  });
+
+  for(const [cat,items] of Object.entries(cats)){
+    const coolKey=`notif-${cat}`;
+    if(notifCooldown[coolKey]&&now-notifCooldown[coolKey]<COOLDOWN) continue;
+    notifCooldown[coolKey]=now;
+
+    const villes=[...new Set(items.map(a=>a.ville))].slice(0,4).join(', ');
+    const worst=items[0];
+    const periodes=[...new Set(items.map(a=>a.periode))].slice(0,2).join(' · ');
+
+    const notifData={
+      body:`${worst.detail}\n📍 ${villes}\n📅 ${periodes}`,
+      icon:'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="8" fill="%230ea5e9"/><text y="22" x="16" text-anchor="middle" font-size="20">🌤</text></svg>',
+      badge:'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><circle cx="16" cy="16" r="16" fill="%23dc2626"/><text y="21" x="16" text-anchor="middle" fill="white" font-size="18">!</text></svg>',
+      tag:`sen-meteo-${cat}`,
+      requireInteraction:cat==='canicule'||cat==='houle',
+      silent:false,
+      vibrate:[200,100,200],
+    };
+
+    try{
+      // Utilise Service Worker si disponible pour notif persistante
+      if('serviceWorker' in navigator&&navigator.serviceWorker.controller){
+        navigator.serviceWorker.controller.postMessage({
+          type:'SHOW_NOTIFICATION',
+          title:`SEN Météo — ${worst.titre}`,
+          options:notifData,
+        });
+      } else {
+        new Notification(`SEN Météo — ${worst.titre}`,notifData);
+      }
+    }catch(e){console.warn('Notif error:',e);}
+  }
+}
+
+// ── Service Worker inline pour notifications persistantes ──
+function registerServiceWorker(){
+  if(!('serviceWorker' in navigator)) return;
+  const swCode=`
+self.addEventListener('message',e=>{
+  if(e.data&&e.data.type==='SHOW_NOTIFICATION'){
+    self.registration.showNotification(e.data.title,e.data.options);
+  }
+});
+self.addEventListener('notificationclick',e=>{
+  e.notification.close();
+  e.waitUntil(clients.matchAll({type:'window'}).then(cs=>{
+    if(cs.length>0){cs[0].focus();}
+    else{clients.openWindow('/');}
+  }));
+});
+// Vérif toutes les 10 min si l'app est en background
+self.addEventListener('periodicsync',e=>{
+  if(e.tag==='meteo-check') e.waitUntil(Promise.resolve());
+});
+`;
+  const blob=new Blob([swCode],{type:'application/javascript'});
+  const swUrl=URL.createObjectURL(blob);
+  navigator.serviceWorker.register(swUrl,{scope:'/'}).then(reg=>{
+    console.log('✅ SW enregistré');
+    // Tenter Periodic Background Sync si disponible
+    if('periodicSync' in reg){
+      navigator.permissions.query({name:'periodic-background-sync'}).then(p=>{
+        if(p.state==='granted'){
+          reg.periodicSync.register('meteo-check',{minInterval:600000}).catch(()=>{});
+        }
+      }).catch(()=>{});
+    }
+  }).catch(e=>console.warn('SW:',e));
+}
+
+// ── Bouton cloche dans la nav ──
+function injectAlertBell(){
+  const nav=document.querySelector('nav');
+  if(!nav||document.getElementById('alertBellBtn')) return;
+  const bell=document.createElement('button');
+  bell.id='alertBellBtn';
+  bell.style.cssText='position:relative;background:none;border:.5px solid var(--border);border-radius:7px;padding:5px 8px;cursor:pointer;color:var(--text3);font-size:14px;flex-shrink:0;transition:all .15s;display:flex;align-items:center;gap:4px';
+  bell.innerHTML=`🔔<span id="alertBellCount" style="font-size:9px;font-family:var(--fh);font-weight:700;display:none">0</span>`;
+  bell.title='Alertes météo';
+  bell.onclick=()=>{
+    showTab('tab-accueil',document.querySelector('.nav-tab'));
+    window.scrollTo({top:0,behavior:'smooth'});
+    setTimeout(()=>{
+      const panel=document.getElementById('alertPanelBody');
+      if(panel&&panel.style.display!=='block') toggleAlertPanel();
+    },300);
+  };
+  // Insérer avant live-pill
+  const pill=nav.querySelector('.live-pill');
+  if(pill) nav.insertBefore(bell,pill);
+  else nav.appendChild(bell);
+}
+
 window.addEventListener('load',async()=>{
   initWeatherCanvas();
   initLeafletMap();
   initVideo();
+  injectAlertBell();
+  registerServiceWorker();
   await loadAll();
   document.getElementById('loadingOverlay').style.display='none';
   // Fix map size after layout
