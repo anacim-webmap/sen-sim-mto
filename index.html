@@ -1930,62 +1930,25 @@ async function sendPushNotifications(){
     const notifData={
       body:`${worst.detail}\n📍 ${villes}\n📅 ${periodes}`,
       icon:'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="8" fill="%230ea5e9"/><text y="22" x="16" text-anchor="middle" font-size="20">🌤</text></svg>',
-      badge:'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><circle cx="16" cy="16" r="16" fill="%23dc2626"/><text y="21" x="16" text-anchor="middle" fill="white" font-size="18">!</text></svg>',
       tag:`sen-meteo-${cat}`,
       requireInteraction:cat==='canicule'||cat==='houle',
       silent:false,
-      vibrate:[200,100,200],
     };
 
     try{
-      // Utilise Service Worker si disponible pour notif persistante
-      if('serviceWorker' in navigator&&navigator.serviceWorker.controller){
-        navigator.serviceWorker.controller.postMessage({
-          type:'SHOW_NOTIFICATION',
-          title:`SEN Météo — ${worst.titre}`,
-          options:notifData,
-        });
-      } else {
-        new Notification(`SEN Météo — ${worst.titre}`,notifData);
-      }
-    }catch(e){console.warn('Notif error:',e);}
+      // Notification directe — compatible file://, HTTP et HTTPS
+      new Notification(`SEN Météo — ${worst.titre}`,notifData);
+    }catch(e){console.warn('Notif:',e);}
   }
 }
 
-// ── Service Worker inline pour notifications persistantes ──
+// ── Pas de Service Worker (incompatible file://) ──
+// Les notifications utilisent directement l'API Web Notifications
+// qui fonctionne partout : fichier local, HTTP, HTTPS, PWA.
 function registerServiceWorker(){
-  if(!('serviceWorker' in navigator)) return;
-  const swCode=`
-self.addEventListener('message',e=>{
-  if(e.data&&e.data.type==='SHOW_NOTIFICATION'){
-    self.registration.showNotification(e.data.title,e.data.options);
-  }
-});
-self.addEventListener('notificationclick',e=>{
-  e.notification.close();
-  e.waitUntil(clients.matchAll({type:'window'}).then(cs=>{
-    if(cs.length>0){cs[0].focus();}
-    else{clients.openWindow('/');}
-  }));
-});
-// Vérif toutes les 10 min si l'app est en background
-self.addEventListener('periodicsync',e=>{
-  if(e.tag==='meteo-check') e.waitUntil(Promise.resolve());
-});
-`;
-  const blob=new Blob([swCode],{type:'application/javascript'});
-  const swUrl=URL.createObjectURL(blob);
-  navigator.serviceWorker.register(swUrl,{scope:'/'}).then(reg=>{
-    console.log('✅ SW enregistré');
-    // Tenter Periodic Background Sync si disponible
-    if('periodicSync' in reg){
-      navigator.permissions.query({name:'periodic-background-sync'}).then(p=>{
-        if(p.state==='granted'){
-          reg.periodicSync.register('meteo-check',{minInterval:600000}).catch(()=>{});
-        }
-      }).catch(()=>{});
-    }
-  }).catch(e=>console.warn('SW:',e));
+  // Désactivé intentionnellement : blob: et file:// ne supportent
+  // pas les SW. La page utilise new Notification() à la place.
+  console.log('ℹ️ Mode notification directe (compatible file://)');
 }
 
 // ── Bouton cloche dans la nav ──
