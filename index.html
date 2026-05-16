@@ -83,41 +83,45 @@ nav{position:sticky;top:0;z-index:400;height:var(--nav);display:flex;align-items
 .side-col{display:none;flex-direction:column;gap:10px;padding-bottom:14px}
 
 /* Carte météo (reste sombre pour lisibilité sur fond animé) */
-.wx-card{background:linear-gradient(145deg,rgba(14,38,82,.92),rgba(10,24,56,.88));border:.5px solid rgba(56,189,248,.28);border-radius:var(--r);padding:18px;backdrop-filter:blur(12px)}
-.city-hdr{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px}
-.cname{font-family:var(--fh);font-size:22px;font-weight:700;letter-spacing:-.5px;color:#eef5ff}
+.wx-card{background:linear-gradient(145deg,rgba(14,38,82,.92),rgba(10,24,56,.88));border:.5px solid rgba(56,189,248,.28);border-radius:var(--r);padding:14px;backdrop-filter:blur(12px)}
+.city-hdr{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px}
+.cname{font-family:var(--fh);font-size:20px;font-weight:700;letter-spacing:-.5px;color:#eef5ff}
 .csub{font-size:10px;color:#7fa8cc;margin-top:2px}
-.unit-tgl{display:flex;gap:2px;background:rgba(0,0,0,.4);border-radius:7px;padding:2px}
-.ubt{background:none;border:none;color:rgba(255,255,255,.5);font-family:var(--fh);font-size:11px;padding:3px 9px;border-radius:5px;cursor:pointer;transition:all .15s}
+.unit-tgl{display:flex;gap:2px;background:rgba(0,0,0,.4);border-radius:7px;padding:2px;flex-shrink:0}
+.ubt{background:none;border:none;color:rgba(255,255,255,.5);font-family:var(--fh);font-size:11px;padding:3px 8px;border-radius:5px;cursor:pointer;transition:all .15s}
 .ubt.active{background:var(--a2);color:#fff}
-.temp-row{display:flex;align-items:flex-start;gap:12px;margin:6px 0 12px}
-.tbig{font-family:var(--fh);font-size:70px;font-weight:300;line-height:1;letter-spacing:-4px;color:#eef5ff}
-.tbig sup{font-size:20px;letter-spacing:0;vertical-align:super;color:#7dd3fc}
-.tside{padding-top:4px}
-.wxi{font-size:36px;margin-bottom:4px;line-height:1}
+.temp-row{display:flex;align-items:center;gap:12px;margin:6px 0 10px}
+.tbig{font-family:var(--fh);font-size:64px;font-weight:300;line-height:1;letter-spacing:-3px;color:#eef5ff}
+.tbig sup{font-size:18px;letter-spacing:0;vertical-align:super;color:#7dd3fc}
+.tside{display:flex;flex-direction:column;gap:3px}
+.wxi{font-size:32px;line-height:1}
 .wxd{font-size:13px;font-weight:500;color:#eef5ff}
-.wxr{font-size:11px;color:#7fa8cc;margin-top:3px}
+.wxr{font-size:11px;color:#7fa8cc}
 .wxr em{color:#fb923c;font-style:normal}
-.wxf{font-size:10.5px;color:#3d5a78;margin-top:2px}
-.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;padding-top:12px;border-top:.5px solid rgba(255,255,255,.1)}
-.stat{text-align:center;padding:4px 2px}
+.wxf{font-size:10px;color:#3d5a78}
+/* Stats — toujours 4 colonnes, texte adapté */
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:2px;padding-top:10px;border-top:.5px solid rgba(255,255,255,.1)}
+.stat{text-align:center;padding:4px 1px}
 .si{font-size:13px;margin-bottom:2px}
-.sv{font-size:13px;font-weight:700;font-family:var(--fh);color:#eef5ff}
-.su{font-size:9px;color:#3d5a78}
-.sl{font-size:9px;color:#3d5a78;text-transform:uppercase;letter-spacing:.4px;margin-top:1px}
+.sv{font-size:12px;font-weight:700;font-family:var(--fh);color:#eef5ff;white-space:nowrap}
+.su{font-size:8.5px;color:#3d5a78}
+.sl{font-size:8px;color:#3d5a78;text-transform:uppercase;letter-spacing:.3px;margin-top:1px}
 
-/* Hourly */
-.hourly-card{background:rgba(10,18,40,.88);border:.5px solid rgba(56,189,248,.15);border-radius:var(--r);padding:11px;backdrop-filter:blur(8px);margin-top:10px}
-.sec-title{font-size:9.5px;font-weight:600;text-transform:uppercase;letter-spacing:.9px;color:var(--text3);display:flex;align-items:center;gap:6px;margin-bottom:9px}
+/* Prévisions horaires */
+.hourly-card{background:rgba(10,18,40,.88);border:.5px solid rgba(56,189,248,.15);border-radius:var(--r);padding:10px;backdrop-filter:blur(8px);margin-top:8px}
+.sec-title{font-size:9.5px;font-weight:600;text-transform:uppercase;letter-spacing:.9px;color:var(--text3);display:flex;align-items:center;gap:6px;margin-bottom:8px}
 .sec-title::after{content:'';flex:1;height:.5px;background:var(--border)}
-.hscroll{display:flex;gap:5px;overflow-x:auto;padding-bottom:3px;scrollbar-width:thin}
-.hi{min-width:52px;text-align:center;background:rgba(255,255,255,.06);border:.5px solid rgba(255,255,255,.1);border-radius:9px;padding:7px 3px;flex-shrink:0;cursor:pointer;transition:all .15s}
-.hi.now,.hi:hover{background:rgba(56,189,248,.15);border-color:rgba(56,189,248,.35)}
-.ht{font-size:9.5px;color:#7fa8cc;margin-bottom:2px;font-family:var(--fm)}
-.hic{font-size:16px;margin-bottom:2px}
-.htp{font-size:12px;font-weight:600;font-family:var(--fh);color:#eef5ff}
-.hr{font-size:9px;color:#7dd3fc;margin-top:2px}
-.hw{font-size:8.5px;color:#3d5a78;margin-top:1px}
+.hscroll{display:flex;gap:5px;overflow-x:auto;padding-bottom:4px;scrollbar-width:thin;-webkit-overflow-scrolling:touch}
+.hscroll::-webkit-scrollbar{height:2px}
+.hscroll::-webkit-scrollbar-thumb{background:rgba(56,189,248,.3);border-radius:2px}
+/* Chaque cellule horaire — bien visible sur mobile */
+.hi{min-width:54px;text-align:center;background:rgba(255,255,255,.07);border:.5px solid rgba(255,255,255,.12);border-radius:10px;padding:8px 4px;flex-shrink:0;cursor:pointer;transition:all .15s}
+.hi.now,.hi:hover{background:rgba(56,189,248,.18);border-color:rgba(56,189,248,.4)}
+.ht{font-size:10px;color:#7fa8cc;margin-bottom:3px;font-family:var(--fm);font-weight:500}
+.hic{font-size:18px;margin-bottom:3px;line-height:1}
+.htp{font-size:13px;font-weight:700;font-family:var(--fh);color:#eef5ff}
+.hr{font-size:9.5px;color:#7dd3fc;margin-top:3px}
+.hw{font-size:9px;color:#3d5a78;margin-top:2px}
 
 .city-list-card{background:rgba(10,18,40,.88);border:.5px solid rgba(56,189,248,.15);border-radius:var(--r);padding:10px;backdrop-filter:blur(8px)}
 .city-item{display:flex;align-items:center;justify-content:space-between;padding:6px 7px;border-radius:7px;cursor:pointer;transition:all .15s;border:.5px solid transparent}
